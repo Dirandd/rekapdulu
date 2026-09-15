@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Kelola Maskapai{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-2xl font-bold text-slate-800 dark:text-white mb-6">✈️ Kelola Maskapai</h1>
+
+  <!-- Form Tambah -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 mb-8">
+    <h2 class="text-base font-semibold text-slate-700 dark:text-gray-200 mb-4">Tambah Maskapai Baru</h2>
+    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400">Nama Maskapai</label>
+          <input type="text" name="name" required class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400">Kode IATA</label>
+          <input type="text" name="code" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400">Tipe</label>
+          <select name="type" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+            <option value="domestic">Domestik</option>
+            <option value="international">Internasional</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400">Logo</label>
+          <input type="file" name="logo" accept="image/*" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition">
+          + Tambah Maskapai
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tabel Maskapai -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+    <table class="w-full border-collapse">
+      <thead class="bg-slate-100 dark:bg-gray-800">
+        <tr>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Logo</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Nama</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Kode</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Tipe</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-center text-slate-700 dark:text-gray-300">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for airline in airlines %}
+        <tr class="hover:bg-slate-50 dark:hover:bg-gray-800">
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2">
+            {% if airline.logo %}
+            <img src="{{ url_for('static', filename='uploads/logos/' + airline.logo) }}" class="h-8" alt="logo">
+            {% else %}
+            <span class="text-xs text-slate-400 dark:text-gray-500">-</span>
+            {% endif %}
+          </td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-slate-700 dark:text-gray-200">{{ airline.name }}</td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-slate-700 dark:text-gray-200">{{ airline.code or '-' }}</td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-slate-700 dark:text-gray-200">{{ airline.type }}</td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-center">
+            <button onclick="deleteAirline({{ airline.id }})" class="text-red-500 hover:underline text-xs">🗑️ Hapus</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="border border-slate-200 dark:border-gray-700 px-4 py-4 text-center text-slate-500 dark:text-gray-400">Belum ada data maskapai</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function deleteAirline(id) {
+  Swal.fire({
+    title: 'Yakin hapus maskapai?',
+    text: 'Logo yang sudah diupload juga akan dihapus',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#DC2626',
+    confirmButtonText: 'Ya, hapus!'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      fetch('/admin/airline/delete/' + id, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            Swal.fire('Dihapus!', '', 'success').then(() => location.reload());
+          } else {
+            Swal.fire('Gagal!', data.message, 'error');
+          }
+        });
+    }
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{
+  "name": "tiket-profit",
+  "version": "1.0.0",
+  "scripts": {
+    "build-css": "tailwindcss -i ./static/input.css -o ./static/dist/output.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

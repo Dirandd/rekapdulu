@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verifikasi OTP — REKAP DULU</title>
+  <link href="{{ url_for('static', filename='dist/output.css') }}" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .bg-main { background: linear-gradient(135deg, #0a0f1e 0%, #0f1a35 50%, #0d1f2d 100%); }
+    .card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(20px); }
+    .otp-input {
+      width: 48px; height: 56px; text-align: center; font-size: 1.5rem; font-weight: 700;
+      background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.15);
+      border-radius: .625rem; color: #fff; outline: none; transition: all .2s;
+    }
+    .otp-input:focus { border-color: #3B82F6; background: rgba(59,130,246,.12); box-shadow: 0 0 0 3px rgba(59,130,246,.2); }
+    .otp-input.filled { border-color: rgba(74,222,128,.5); background: rgba(74,222,128,.08); }
+    .btn-primary {
+      width: 100%; padding: .75rem; border-radius: .625rem;
+      background: linear-gradient(135deg, #1D4ED8, #1e40af);
+      color: #fff; font-weight: 700; font-size: .9rem;
+      border: none; cursor: pointer; transition: all .2s;
+      box-shadow: 0 4px 15px rgba(37,99,235,.4);
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .dot { position: absolute; border-radius: 50%; animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-20px) scale(1.05)} }
+    .email-mask { color: #60A5FA; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-main min-h-screen flex items-center justify-center relative overflow-hidden">
+
+  <div class="dot w-64 h-64 opacity-5" style="background:radial-gradient(circle,#3B82F6,transparent);top:-5%;left:-5%"></div>
+  <div class="dot w-96 h-96 opacity-5" style="background:radial-gradient(circle,#DC2626,transparent);bottom:-10%;right:-10%;animation-delay:2s"></div>
+
+  <div class="relative z-10 w-full max-w-sm mx-4">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center mb-4">
+        <svg width="52" height="52" viewBox="0 0 30 30" fill="none">
+          <rect width="30" height="30" rx="8" fill="url(#lg-otp)"/>
+          <rect x="5" y="17" width="4" height="8" rx="1" fill="#4ADE80" opacity=".9"/>
+          <rect x="11" y="12" width="4" height="13" rx="1" fill="#60A5FA" opacity=".9"/>
+          <rect x="17" y="7" width="4" height="18" rx="1" fill="#F87171" opacity=".9"/>
+          <defs>
+            <linearGradient id="lg-otp" x1="0" y1="0" x2="30" y2="30">
+              <stop offset="0%" stop-color="#1D4ED8"/><stop offset="50%" stop-color="#0f172a"/><stop offset="100%" stop-color="#166534"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h1 style="color:#fff;font-size:1.6rem;font-weight:900;letter-spacing:.06em;margin:0">REKAP DULU</h1>
+      <p style="color:rgba(255,255,255,.35);font-size:.75rem;margin-top:4px">VERIFIKASI OTP</p>
+    </div>
+
+    <div class="card rounded-2xl p-7">
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);display:inline-flex;align-items:center;justify-content:center;margin-bottom:.75rem">
+          <svg class="w-6 h-6" fill="none" stroke="#4ADE80" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <h2 style="color:rgba(255,255,255,.85);font-size:.95rem;font-weight:600;margin:0">Masukkan Kode OTP</h2>
+        <p style="color:rgba(255,255,255,.35);font-size:.75rem;margin-top:.35rem;line-height:1.5">
+          Kode 6 digit telah dikirim ke<br>
+          <span class="email-mask">{{ email }}</span>
+        </p>
+        <div id="countdown" style="color:rgba(255,255,255,.4);font-size:.75rem;margin-top:.5rem">
+          Berlaku: <span id="timer" style="color:#60A5FA;font-weight:600">10:00</span>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+          <script>Swal.fire({icon:'{{ "success" if cat=="success" else "error" }}',title:'{{ msg }}',timer:3500,showConfirmButton:false});</script>
+        {% endfor %}{% endif %}
+      {% endwith %}
+
+      <form method="POST" id="otpForm" class="space-y-6">
+        <div style="display:flex;gap:8px;justify-content:center">
+          <input type="text" name="otp1" id="otp1" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" required>
+          <input type="text" name="otp2" id="otp2" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" required>
+          <input type="text" name="otp3" id="otp3" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" required>
+          <input type="text" name="otp4" id="otp4" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" required>
+          <input type="text" name="otp5" id="otp5" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" required>
+          <input type="text" name="otp6" id="otp6" maxlength="1" class="otp-input" inputmode="numeric" pattern="[0-9]" required>
+        </div>
+
+        <button type="submit" class="btn-primary" id="submitBtn">Verifikasi OTP →</button>
+      </form>
+
+      <div style="text-align:center;margin-top:1.25rem;display:flex;flex-direction:column;gap:.5rem">
+        <a href="{{ url_for('forgot_password') }}" style="color:#60A5FA;font-size:.78rem;cursor:pointer">
+          🔄 Kirim ulang kode OTP
+        </a>
+        <a href="{{ url_for('login') }}" style="color:rgba(255,255,255,.3);font-size:.75rem">
+          ← Kembali ke Login
+        </a>
+      </div>
+    </div>
+
+    <p style="text-align:center;color:rgba(255,255,255,.2);font-size:.7rem;margin-top:1.5rem">
+      © 2026 REKAP DULU · Sistem Tiket & Profit Agensi
+    </p>
+  </div>
+
+<script>
+// Auto-focus next input
+const inputs = document.querySelectorAll('.otp-input');
+inputs.forEach((inp, idx) => {
+  inp.addEventListener('input', function(e) {
+    const val = e.target.value.replace(/[^0-9]/g,'');
+    e.target.value = val.slice(-1);
+    if (val && idx < inputs.length - 1) inputs[idx+1].focus();
+    e.target.classList.toggle('filled', !!e.target.value);
+    checkAllFilled();
+  });
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+      inputs[idx-1].focus();
+      inputs[idx-1].value = '';
+      inputs[idx-1].classList.remove('filled');
+    }
+    if (e.key === 'ArrowLeft' && idx > 0) inputs[idx-1].focus();
+    if (e.key === 'ArrowRight' && idx < inputs.length-1) inputs[idx+1].focus();
+  });
+  inp.addEventListener('paste', function(e) {
+    e.preventDefault();
+    const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+    [...pasted.slice(0,6)].forEach((c, i) => {
+      if (inputs[i]) { inputs[i].value = c; inputs[i].classList.add('filled'); }
+    });
+    if (pasted.length) inputs[Math.min(pasted.length, 5)].focus();
+    checkAllFilled();
+  });
+});
+
+function checkAllFilled() {
+  const allFilled = [...inputs].every(i => i.value.length === 1);
+  document.getElementById('submitBtn').style.opacity = allFilled ? '1' : '0.6';
+}
+checkAllFilled();
+
+// Countdown timer (10 minutes)
+let remaining = 600;
+const timerEl = document.getElementById('timer');
+const interval = setInterval(() => {
+  remaining--;
+  if (remaining <= 0) {
+    clearInterval(interval);
+    timerEl.textContent = 'Kadaluarsa';
+    timerEl.style.color = '#F87171';
+    return;
+  }
+  const m = Math.floor(remaining/60), s = remaining%60;
+  timerEl.textContent = m+':'+String(s).padStart(2,'0');
+}, 1000);
+
+inputs[0].focus();
+</script>
+</body>
+</html>

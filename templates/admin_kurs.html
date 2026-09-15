@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Kurs Mata Uang{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">💱 Kurs Real-time (Update Otomatis 1 Menit)</h1>
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <table class="w-full border-collapse border border-slate-300">
+            <thead class="bg-slate-100">
+                <tr>
+                    <th class="border border-slate-300 px-4 py-2 text-left">Mata Uang</th>
+                    <th class="border border-slate-300 px-4 py-2 text-right">Kurs (1 = Rp)</th>
+                    <th class="border border-slate-300 px-4 py-2 text-left">Update Terakhir</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rate in rates %}
+                <tr class="hover:bg-slate-50">
+                    <td class="border border-slate-300 px-4 py-2 font-medium">{{ rate.currency.code }} - {{ rate.currency.name }}</td>
+                    <td class="border border-slate-300 px-4 py-2 text-right">{{ "{:,.2f}".format(rate.rate) }}</td>
+                    <td class="border border-slate-300 px-4 py-2 text-sm text-slate-600">{{ rate.updated_at.strftime('%d/%m/%Y %H:%M:%S') if rate.updated_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

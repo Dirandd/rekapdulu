@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Kelola Jadwal Maskapai{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <h1 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">📅 Kelola Jadwal Maskapai</h1>
+  <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Jadwal tersimpan otomatis saat invoice dibuat. Anda juga bisa menambah/edit manual di sini.</p>
+
+  <!-- Form Tambah / Edit -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 mb-8">
+    <h2 class="text-base font-semibold text-slate-700 dark:text-gray-200 mb-4">Tambah / Perbarui Jadwal</h2>
+    <form method="POST" class="space-y-4">
+      <input type="hidden" name="action" value="add">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Maskapai <span class="text-red-500">*</span></label>
+          <select name="airline_id" required class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+            <option value="">Pilih Maskapai</option>
+            {% for al in airlines %}
+            <option value="{{ al.id }}">{{ al.name }} {% if al.code %}({{ al.code }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">No Penerbangan <span class="text-red-500">*</span></label>
+          <input type="text" name="flight_no" required placeholder="Cth: GA-405" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none uppercase" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Kelas</label>
+          <input type="text" name="flight_class" placeholder="Cth: Y, C, F" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none uppercase" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Rute Dari</label>
+          <input type="text" name="route_from" placeholder="Cth: CGK" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none uppercase" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Rute Ke</label>
+          <input type="text" name="route_to" placeholder="Cth: DPS" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none uppercase" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Catatan</label>
+          <input type="text" name="notes" placeholder="Opsional" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Jam Berangkat</label>
+          <input type="text" name="departure_time" placeholder="HH:MM" maxlength="5" id="addDepTime" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none font-mono">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Jam Tiba</label>
+          <input type="text" name="arrival_time" placeholder="HH:MM" maxlength="5" id="addArrTime" class="w-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 outline-none font-mono">
+        </div>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition">
+          💾 Simpan Jadwal
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Search -->
+  <div class="mb-4 flex gap-3 items-center">
+    <input type="text" id="searchInput" placeholder="🔍 Cari no penerbangan atau maskapai..." 
+           class="border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg p-2.5 flex-1 focus:ring-2 focus:ring-blue-400 outline-none"
+           oninput="filterTable()">
+    <span class="text-sm text-slate-500 dark:text-gray-400" id="countLabel">{{ schedules|length }} jadwal</span>
+  </div>
+
+  <!-- Tabel Jadwal -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+    {% if schedules %}
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse" id="schedTable">
+        <thead class="bg-slate-100 dark:bg-gray-800">
+          <tr>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">No Penerbangan</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">Maskapai</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">Dari → Ke</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">Kelas</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">Jam Berangkat</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-left text-slate-700 dark:text-gray-300 text-sm">Jam Tiba</th>
+            <th class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-center text-slate-700 dark:text-gray-300 text-sm">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in schedules %}
+          <tr class="hover:bg-slate-50 dark:hover:bg-gray-800 sched-row" 
+              data-search="{{ s.flight_no|lower }} {{ s.airline.name|lower if s.airline else '' }}">
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2">
+              <span class="font-mono font-bold text-blue-600 dark:text-blue-400">{{ s.flight_no }}</span>
+            </td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-slate-700 dark:text-gray-200">
+              <div class="flex items-center gap-2">
+                {% if s.airline and s.airline.logo %}
+                <img src="{{ url_for('static', filename='uploads/logos/' + s.airline.logo) }}" class="h-5 w-auto" alt="">
+                {% endif %}
+                {{ s.airline.name if s.airline else '-' }}
+              </div>
+            </td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-slate-700 dark:text-gray-200">
+              <span class="font-medium">{{ s.route_from or '-' }}</span>
+              {% if s.route_from and s.route_to %}<span class="text-slate-400 mx-1">→</span>{% endif %}
+              <span class="font-medium">{{ s.route_to or '-' }}</span>
+            </td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-slate-700 dark:text-gray-200">{{ s.flight_class or '-' }}</td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 font-mono text-slate-700 dark:text-gray-200">{{ s.departure_time or '-' }}</td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 font-mono text-slate-700 dark:text-gray-200">{{ s.arrival_time or '-' }}</td>
+            <td class="border border-slate-200 dark:border-gray-700 px-3 py-2 text-center">
+              <form method="POST" style="display:inline" onsubmit="return confirm('Hapus jadwal {{ s.flight_no }}?')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" value="{{ s.id }}">
+                <button type="submit" class="text-red-500 hover:underline text-xs font-medium">🗑️ Hapus</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="text-4xl mb-3">✈️</div>
+      <p class="text-slate-600 dark:text-gray-400 font-medium">Belum ada jadwal tersimpan</p>
+      <p class="text-sm text-slate-400 dark:text-gray-500 mt-1">Jadwal akan otomatis tersimpan saat membuat invoice baru, atau tambah manual di atas.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+// Time mask for add form
+function applyTimeMaskEl(el) {
+  el.addEventListener('input', function() {
+    let raw = this.value.replace(/\D/g, '').slice(0, 4);
+    this.value = raw.length >= 3 ? raw.slice(0,2) + ':' + raw.slice(2) : raw;
+  });
+  el.addEventListener('keydown', function(e) {
+    if ([9,27,37,38,39,40,8,46].includes(e.keyCode)) return;
+    if (!/[0-9]/.test(e.key)) e.preventDefault();
+  });
+}
+applyTimeMaskEl(document.getElementById('addDepTime'));
+applyTimeMaskEl(document.getElementById('addArrTime'));
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rows = document.querySelectorAll('.sched-row');
+  let visible = 0;
+  rows.forEach(row => {
+    const match = !q || row.dataset.search.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  document.getElementById('countLabel').textContent = visible + ' jadwal';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Arsip Invoice — REKAP DULU{% endblock %}
+{% block page_title %}📁 Arsip Invoice{% endblock %}
+{% block content %}
+
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-xl font-bold text-gray-900 dark:text-white">Arsip Invoice</h1>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Semua invoice tersimpan, dikelompokkan per agensi & agent</p>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="switchTab('agency')" id="tab-agency"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-blue-600 text-white">
+      Per Agensi
+    </button>
+    <button onclick="switchTab('agent')" id="tab-agent"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+      Per Agent
+    </button>
+  </div>
+</div>
+
+<!-- Tab Agensi -->
+<div id="pane-agency">
+  {% for agency, invs in agency_groups.items() %}
+  <div class="mb-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+    <div class="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-bold">{{ agency[0]|upper }}</div>
+        <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ agency }}</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-gray-500 dark:text-gray-400">{{ invs|length }} invoice</span>
+        <span class="text-green-600 dark:text-green-400 font-medium">Profit: Rp {{ "{:,.0f}".format(invs|sum(attribute='profit')) }}</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-50 dark:border-gray-800">
+            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Invoice</th>
+            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">PNR</th>
+            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Maskapai / Rute</th>
+            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Tgl Berangkat</th>
+            <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Total Jual</th>
+            <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Profit</th>
+            <th class="px-4 py-2.5 text-center text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase">Aksi</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+          {% for inv in invs %}
+          <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors" id="arsip-row-{{ inv.id }}">
+            <td class="px-4 py-3">
+              <span class="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">{{ inv.invoice_number }}</span>
+              <div class="text-[10px] text-gray-400 dark:text-gray-500">{{ inv.created_at.strftime('%d/%m/%Y') }}</div>
+            </td>
+            <td class="px-4 py-3"><span class="font-mono text-sm font-bold text-gray-700 dark:text-gray-300">{{ inv.pnr }}</span></td>
+            <td class="px-4 py-3">
+              {% if inv.flights %}
+              <div class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ inv.flights[0].airline }} {{ inv.flights[0].flight_no }}</div>
+              <div class="text-[10px] text-gray-400 dark:text-gray-500">{{ inv.flights[0].route_from }}→{{ inv.flights[0].route_to }}</div>
+              {% else %}<span class="text-gray-400 text-xs">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
+              {{ inv.flights[0].departure_date if inv.flights and inv.flights[0].departure_date else '—' }}
+            </td>
+            <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">Rp {{ "{:,.0f}".format(inv.total_sell) }}</td>
+            <td class="px-4 py-3 text-right text-sm font-semibold {{ 'text-green-600 dark:text-green-400' if inv.profit>=0 else 'text-red-500' }}">
+              Rp {{ "{:,.0f}".format(inv.profit) }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-1">
+                <a href="{{ url_for('edit_invoice', id=inv.id) }}"
+                   class="p-1.5 rounded text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors" title="Edit">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </a>
+                <a href="{{ url_for('cetak_invoice_pdf', id=inv.id) }}" target="_blank"
+                   class="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Cetak PDF">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                </a>
+                <button onclick="doVoid('/invoice/delete/{{ inv.id }}','{{ inv.invoice_number }}',()=>document.getElementById('arsip-row-{{ inv.id }}').remove())"
+                        class="p-1.5 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="VOID">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-12 text-center">
+    <p class="text-gray-400 dark:text-gray-500 text-sm">Belum ada data arsip</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Tab Agent -->
+<div id="pane-agent" class="hidden">
+  {% for ag, invs in agent_groups.items() %}
+  <div class="mb-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+    <div class="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-green-600 flex items-center justify-center text-white text-xs font-bold">{{ ag[0]|upper }}</div>
+        <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ ag }}</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-gray-500 dark:text-gray-400">{{ invs|length }} invoice</span>
+        <span class="text-green-600 dark:text-green-400 font-medium">Profit: Rp {{ "{:,.0f}".format(invs|sum(attribute='profit')) }}</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-gray-50 dark:border-gray-800">
+          <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase">Invoice</th>
+          <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase">PNR</th>
+          <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase">Rute</th>
+          <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase">Total Jual</th>
+          <th class="px-4 py-2.5 text-right text-[11px] font-semibold text-gray-400 uppercase">Profit</th>
+          <th class="px-4 py-2.5 text-center text-[11px] font-semibold text-gray-400 uppercase">Aksi</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+          {% for inv in invs %}
+          <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors" id="ag-row-{{ inv.id }}">
+            <td class="px-4 py-3"><span class="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">{{ inv.invoice_number }}</span></td>
+            <td class="px-4 py-3"><span class="font-mono text-sm font-bold text-gray-700 dark:text-gray-300">{{ inv.pnr }}</span></td>
+            <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
+              {{ inv.flights[0].route_from + '→' + inv.flights[0].route_to if inv.flights else '—' }}
+            </td>
+            <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">Rp {{ "{:,.0f}".format(inv.total_sell) }}</td>
+            <td class="px-4 py-3 text-right text-sm font-semibold {{ 'text-green-600 dark:text-green-400' if inv.profit>=0 else 'text-red-500' }}">
+              Rp {{ "{:,.0f}".format(inv.profit) }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-1">
+                <a href="{{ url_for('edit_invoice', id=inv.id) }}" class="p-1.5 rounded text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors" title="Edit">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </a>
+                <div class="relative" id="arsipPdfDrop{{ inv.id }}">
+                  <button onclick="toggleArsipPdf('{{ inv.id }}')"
+                    class="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Cetak PDF">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                  </button>
+                  <div id="arsipPdfMenu{{ inv.id }}" class="hidden absolute right-0 bottom-full mb-1 z-40 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl py-1 w-40">
+                    <a href="{{ url_for('cetak_invoice_pdf', id=inv.id) }}?mode=customer" target="_blank" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30">🧑 Pelanggan</a>
+                    <a href="{{ url_for('cetak_invoice_pdf', id=inv.id) }}?mode=nett" target="_blank" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30">✈️ Nett Maskapai</a>
+                    {% if inv.keep_amount %}<a href="{{ url_for('cetak_invoice_pdf', id=inv.id) }}?mode=keep" target="_blank" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30">💼 Keep</a>{% endif %}
+                  </div>
+                </div>
+                <button onclick="doVoid('/invoice/delete/{{ inv.id }}','{{ inv.invoice_number }}',()=>document.getElementById('ag-row-{{ inv.id }}').remove())"
+                        class="p-1.5 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="VOID">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function switchTab(t){
+  ['agency','agent'].forEach(x=>{
+    document.getElementById('pane-'+x).classList.toggle('hidden', x!==t);
+    const btn = document.getElementById('tab-'+x);
+    if(x===t){ btn.className='px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white'; }
+    else{ btn.className='px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors'; }
+  });
+}
+function toggleArsipPdf(id) {
+  document.querySelectorAll('[id^="arsipPdfMenu"]').forEach(m => {
+    if (m.id !== 'arsipPdfMenu' + id) m.classList.add('hidden');
+  });
+  document.getElementById('arsipPdfMenu' + id).classList.toggle('hidden');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('[id^="arsipPdfDrop"]')) {
+    document.querySelectorAll('[id^="arsipPdfMenu"]').forEach(m => m.classList.add('hidden'));
+  }
+});
+</script>
+{% endblock %}

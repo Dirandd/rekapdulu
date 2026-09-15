@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Kriteria Agent{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-2xl font-bold text-slate-800 dark:text-white mb-6">📋 Kriteria Agent</h1>
+
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4 mb-6">
+    <form method="POST" class="flex gap-2">
+      <input type="text" name="name" placeholder="Nama Kategori" required class="border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 outline-none">
+      <input type="text" name="description" placeholder="Deskripsi" class="border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 outline-none">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap">Tambah</button>
+    </form>
+  </div>
+
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+    <table class="w-full border-collapse">
+      <thead class="bg-slate-100 dark:bg-gray-800">
+        <tr>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Nama</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-left text-slate-700 dark:text-gray-300">Deskripsi</th>
+          <th class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-center text-slate-700 dark:text-gray-300">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cat in categories %}
+        <tr class="hover:bg-slate-50 dark:hover:bg-gray-800">
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-slate-700 dark:text-gray-200">{{ cat.name }}</td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-slate-700 dark:text-gray-200">{{ cat.description or '-' }}</td>
+          <td class="border border-slate-200 dark:border-gray-700 px-4 py-2 text-center">
+            <button onclick="deleteCategory({{ cat.id }})" class="text-red-500 hover:underline text-xs">🗑️ Hapus</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="border border-slate-200 dark:border-gray-700 px-4 py-4 text-center text-slate-500 dark:text-gray-400">Belum ada data</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function deleteCategory(id) {
+  Swal.fire({
+    title: 'Yakin hapus?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#DC2626',
+    confirmButtonText: 'Ya, hapus!'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      fetch('/admin/kriteria-agent/delete/' + id, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            Swal.fire('Dihapus!', '', 'success').then(() => location.reload());
+          } else {
+            Swal.fire('Gagal!', data.message, 'error');
+          }
+        });
+    }
+  });
+}
+</script>
+{% endblock %}

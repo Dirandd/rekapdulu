@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Lunas Invoice — REKAP DULU{% endblock %}
+{% block page_title %}✅ Lunas Invoice / Refund{% endblock %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+  <div class="mb-6 flex items-center gap-3">
+    <a href="{{ url_for('pelunasan') }}" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-xl font-bold text-gray-900 dark:text-white">Lunas Invoice / Refund</h1>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Pilih invoice dari daftar atau cari manual</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    <!-- LEFT: Scrollable Invoice List -->
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+      <div class="h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+      <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">📋 Daftar Invoice Terbaru</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">{{ recent_invoices|length }} invoice</span>
+      </div>
+      <!-- Filter input -->
+      <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+        <input type="text" id="listFilter" placeholder="Filter invoice..."
+          class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-blue-400"
+          oninput="filterList(this.value)">
+      </div>
+      <!-- Scrollable list -->
+      <div class="overflow-y-auto" style="max-height:420px" id="invoiceList">
+        {% for inv in recent_invoices %}
+        <div class="inv-row border-b border-gray-50 dark:border-gray-800 px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+             data-search="{{ inv.invoice_number }} {{ inv.pnr }} {{ inv.agent_name }}"
+             onclick="selectFromList('invoice','{{ inv.id }}','{{ inv.invoice_number }}','{{ inv.pnr }}','{{ inv.agent_name }}','{{ inv.total_sell|int }}')">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{{ inv.invoice_number }}</span>
+              <span class="ml-2 text-xs text-gray-500 dark:text-gray-400 font-mono">{{ inv.pnr }}</span>
+            </div>
+            <span class="text-xs font-semibold text-green-600 dark:text-green-400">Rp {{ "{:,.0f}".format(inv.total_sell or 0) }}</span>
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ inv.agent_name }} · {{ inv.created_at.strftime('%d/%m/%Y') }}</div>
+        </div>
+        {% else %}
+        <div class="px-4 py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Belum ada invoice</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- RIGHT: Search + Form -->
+    <div class="space-y-4">
+      <!-- Search box -->
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div class="h-1 bg-gradient-to-r from-red-500 via-blue-500 to-green-500"></div>
+        <div class="p-4">
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+            Atau Cari No Invoice / PNR
+          </label>
+          <div class="flex gap-2">
+            <input type="text" id="searchInput" placeholder="Ketik no invoice atau PNR..."
+                   autocomplete="off"
+                   class="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none uppercase"
+                   oninput="searchInvoice(this.value)">
+            <button onclick="searchInvoice(document.getElementById('searchInput').value)"
+                    class="px-4 py-2.5 rounded-xl text-sm font-medium text-white" style="background:#2563EB">
+              Cari
+            </button>
+          </div>
+          <!-- Autocomplete results -->
+          <div id="searchResults" class="hidden mt-2 border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm"></div>
+        </div>
+      </div>
+
+      <!-- Selected item info -->
+      <div id="selectedCard" class="hidden bg-white dark:bg-gray-900 rounded-2xl border border-blue-200 dark:border-blue-700 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/50 flex items-center justify-between">
+          <span class="text-sm font-semibold text-blue-700 dark:text-blue-300" id="selType">Invoice</span>
+          <span class="font-mono text-xs font-bold text-blue-800 dark:text-blue-200" id="selNumber">—</span>
+        </div>
+        <div class="p-5 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 dark:text-gray-500">PNR</div>
+            <div class="font-bold font-mono text-gray-800 dark:text-gray-200" id="selPnr">—</div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 dark:text-gray-500">Agent</div>
+            <div class="font-medium text-gray-700 dark:text-gray-300" id="selAgent">—</div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 dark:text-gray-500">Jumlah</div>
+            <div class="font-bold text-green-600 dark:text-green-400 text-lg" id="selAmount">Rp 0</div>
+          </div>
+        </div>
+      </div>
+
+  <!-- Payment form -->
+  <div id="payForm" class="hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+      <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Detail Pembayaran</span>
+    </div>
+    <div class="p-5 space-y-4">
+      <input type="hidden" id="payRefType" value="">
+      <input type="hidden" id="payRefId" value="">
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          Jumlah Dibayar (Rp) <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="payAmount" placeholder="0"
+               oninput="fmtAmt(this)"
+               class="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono text-right bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          No. Transfer / Bukti Bayar <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="payTransfer" placeholder="Contoh: TRF20260516001"
+               class="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm uppercase bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+               oninput="this.value=this.value.toUpperCase()">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          Keterangan Tambahan
+        </label>
+        <input type="text" id="payNotes" placeholder="Transfer via BCA/Mandiri dst (opsional)"
+               class="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="clearSelection()"
+                class="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          Reset
+        </button>
+        <button onclick="submitLunas()"
+                class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm"
+                style="background:linear-gradient(135deg,#16A34A,#15803d);">
+          ✓ Tandai Lunas
+        </button>
+      </div>
+    </div>
+  </div><!-- end payForm -->
+    </div><!-- end right column -->
+  </div><!-- end grid -->
+</div><!-- end max-w -->
+
+<script>
+let searchTimer;
+function searchInvoice(val){
+  val = val.trim().toUpperCase();
+  clearTimeout(searchTimer);
+  if(val.length < 2){ document.getElementById('searchResults').classList.add('hidden'); return; }
+  searchTimer = setTimeout(()=>{
+    fetch('/api/search-inv?q='+encodeURIComponent(val))
+      .then(r=>r.json()).then(data=>renderResults(data));
+  }, 300);
+}
+
+function renderResults(items){
+  const el = document.getElementById('searchResults');
+  if(!items.length){ el.innerHTML='<div class="px-4 py-3 text-xs text-gray-400 dark:text-gray-500">Tidak ditemukan</div>'; el.classList.remove('hidden'); return; }
+  el.innerHTML = items.map(it=>`
+    <div onclick='selectItem(${JSON.stringify(it)})' 
+         class="px-4 py-3 text-sm cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-gray-50 dark:border-gray-800 last:border-0 flex items-center justify-between">
+      <div>
+        <span class="font-mono font-bold text-${it.type=='invoice'?'blue':'red'}-700 dark:text-${it.type=='invoice'?'blue':'red'}-400">${it.number}</span>
+        <span class="ml-2 text-gray-500 dark:text-gray-400 text-xs">${it.pnr}</span>
+        <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded ${it.type=='invoice'?'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400':'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'}">${it.type=='invoice'?'INVOICE':'REFUND'}</span>
+      </div>
+      <span class="text-xs font-semibold text-green-600 dark:text-green-400">Rp ${parseFloat(it.amount).toLocaleString('id-ID')}</span>
+    </div>`).join('');
+  el.classList.remove('hidden');
+}
+
+function selectItem(it){
+  document.getElementById('searchResults').classList.add('hidden');
+  document.getElementById('searchInput').value = it.number;
+  document.getElementById('payRefType').value  = it.type;
+  document.getElementById('payRefId').value    = it.id;
+  document.getElementById('selType').textContent   = it.type=='invoice' ? '🧾 Invoice' : '↩️ Refund';
+  document.getElementById('selNumber').textContent = it.number;
+  document.getElementById('selPnr').textContent    = it.pnr;
+  document.getElementById('selAgent').textContent  = it.agent || '-';
+  document.getElementById('selAmount').textContent = 'Rp '+parseFloat(it.amount).toLocaleString('id-ID');
+  document.getElementById('payAmount').value = parseFloat(it.amount).toLocaleString('id-ID');
+  document.getElementById('selectedCard').classList.remove('hidden');
+  document.getElementById('payForm').classList.remove('hidden');
+  // Highlight selected row
+  document.querySelectorAll('.inv-row').forEach(r => r.classList.remove('bg-blue-100','dark:bg-blue-900/40','ring-2','ring-blue-400'));
+}
+
+function selectFromList(type, id, number, pnr, agent, amount) {
+  // Highlight row
+  document.querySelectorAll('.inv-row').forEach(r => r.classList.remove('bg-blue-100','ring-2','ring-blue-400'));
+  event.currentTarget.classList.add('bg-blue-100','ring-2','ring-blue-400');
+  selectItem({type, id, number, pnr, agent, amount});
+}
+
+function filterList(val) {
+  val = val.toLowerCase();
+  document.querySelectorAll('.inv-row').forEach(row => {
+    const search = row.dataset.search.toLowerCase();
+    row.style.display = val === '' || search.includes(val) ? '' : 'none';
+  });
+}
+
+function clearSelection(){
+  document.getElementById('searchInput').value='';
+  document.getElementById('selectedCard').classList.add('hidden');
+  document.getElementById('payForm').classList.add('hidden');
+  document.getElementById('searchResults').classList.add('hidden');
+}
+
+function fmtAmt(el){
+  let v=el.value.replace(/[^0-9]/g,'');
+  el.value = v ? parseInt(v).toLocaleString('id-ID') : '';
+}
+
+function submitLunas(){
+  const type = document.getElementById('payRefType').value;
+  const id   = document.getElementById('payRefId').value;
+  const rawAmt = document.getElementById('payAmount').value.replace(/\./g,'').replace(',','.');
+  const amount = parseFloat(rawAmt);
+  const transfer_no = document.getElementById('payTransfer').value.trim();
+  const notes = document.getElementById('payNotes').value.trim();
+  if(!id){ Swal.fire('Error','Pilih invoice atau refund dahulu','error'); return; }
+  if(!amount){ Swal.fire('Error','Masukkan jumlah pembayaran','error'); return; }
+  if(!transfer_no){ Swal.fire('Error','Masukkan nomor transfer sebagai bukti','error'); return; }
+
+  Swal.fire({
+    title:'Konfirmasi Lunas',
+    html:`Catat pembayaran <strong>Rp ${amount.toLocaleString('id-ID')}</strong><br>No Transfer: <strong>${transfer_no}</strong>`,
+    icon:'question', showCancelButton:true,
+    confirmButtonColor:'#16A34A', confirmButtonText:'✓ Lunas', cancelButtonText:'Batal'
+  }).then(r=>{
+    if(!r.isConfirmed) return;
+    const body = new URLSearchParams({ref_type:type, ref_id:id, amount:amount, transfer_no:transfer_no, notes:notes});
+    fetch('/pelunasan/lunas',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
+      .then(r=>r.json()).then(data=>{
+        if(data.status==='success'){
+          Swal.fire({icon:'success',title:'Lunas!',text:data.message,timer:2500,showConfirmButton:false})
+            .then(()=>clearSelection());
+        } else {
+          Swal.fire('Gagal',data.message,'error');
+        }
+      });
+  });
+}
+</script>
+{% endblock %}

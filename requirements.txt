@@ -1,0 +1,12 @@
+Flask==3.0.2
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Werkzeug==3.0.1
+fpdf2==2.7.7
+pandas==2.2.0
+openpyxl==3.1.2
+gunicorn==21.2.0
+Flask-APScheduler
+Pillow
+numpy
+requests

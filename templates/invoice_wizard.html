@@ -1,0 +1,1245 @@
+{% extends "base.html" %}
+{% block title %}{% if invoice %}Edit{% else %}Buat{% endif %} Invoice{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <h1 class="text-3xl font-bold text-slate-800 mb-6">
+    {% if invoice %}Edit Invoice {{ invoice.pnr }}{% else %}Buat Invoice Baru{% endif %}
+  </h1>
+
+  <!-- Step Indicator -->
+  <div class="flex items-center mb-8 text-sm font-medium">
+    <span class="step-indicator px-3 py-1 rounded-full bg-blue-100 text-blue-700">1</span>
+    <span class="mx-2 text-slate-400">→</span>
+    <span class="step-indicator px-3 py-1 rounded-full">2</span>
+    <span class="mx-2 text-slate-400">→</span>
+    <span class="step-indicator px-3 py-1 rounded-full">3</span>
+    <span class="mx-2 text-slate-400">→</span>
+    <span class="step-indicator px-3 py-1 rounded-full">4</span>
+    <span class="mx-2 text-slate-400">→</span>
+    <span class="step-indicator px-3 py-1 rounded-full">5</span>
+  </div>
+
+  <form method="POST" id="invoiceForm" class="space-y-8">
+    <!-- PENTING: invoice_type harus selalu ikut saat submit -->
+    <input type="hidden" name="invoice_type" value="{{ type }}">
+    <!-- STEP 1: Agent & Kategori -->
+    <section class="step-content bg-white p-6 rounded-xl shadow">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">1. Informasi Agent</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-600">Kategori Agensi <span class="text-red-500">*</span></label>
+          <select name="agency_category_id" id="agency_category_id" class="w-full border p-2.5 rounded" required onchange="loadAgents()">
+            <option value="">Pilih Kategori</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if invoice and invoice.agency_category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-600">Agent <span class="text-red-500">*</span></label>
+          <select name="agent_id" id="agent_id" class="w-full border p-2.5 rounded" required onchange="showAgentInfo()">
+            <option value="">Pilih Agent</option>
+            {% for agent in agents %}
+            <option value="{{ agent.id }}" data-info="{{ agent.email or '' }} | {{ agent.phone or '' }} | {{ agent.address or '' }}" {% if invoice and invoice.agent_id == agent.id %}selected{% endif %}>{{ agent.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div id="agentInfo" class="mt-2 text-sm text-slate-600 bg-gray-50 p-2 rounded"></div>
+      <!-- Input Nama Agensi dihapus dari sini -->
+      <div class="mt-4 flex justify-end">
+        <button type="button" onclick="nextStep()" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Selanjutnya</button>
+      </div>
+    </section>
+
+    <!-- STEP 2: Penerbangan dengan Logo -->
+    <section class="step-content bg-white p-6 rounded-xl shadow hidden">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">2. Informasi Penerbangan</h2>
+      <div id="flightsContainer">
+        {% if flights %}
+          {% for f in flights %}
+          <div class="flight-row grid grid-cols-5 gap-3 mb-3 p-3 bg-gray-50 rounded items-start">
+            <div class="flex flex-col gap-1">
+              <img src="/static/uploads/logos/{{ f.logo or '' }}" class="airline-logo h-6 object-contain {% if not f.logo %}hidden{% endif %}" />
+              <select name="airline[]" class="airline-select border p-2 rounded w-full text-sm" required onchange="showLogo(this)">
+                <option value="">Maskapai</option>
+                {% for airline in airlines %}
+                <option value="{{ airline.name }}" data-logo="{{ airline.logo }}" {% if f.airline == airline.name %}selected{% endif %}>{{ airline.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <input type="text" name="flight_no[]" placeholder="No Penerbangan" value="{{ f.flight_no }}" class="border p-2 rounded" required oninput="lookupSchedule(this)">
+            <input type="text" name="route_from[]" placeholder="Dari" value="{{ f.route_from }}" class="border p-2 rounded" required>
+            <input type="text" name="route_to[]" placeholder="Ke" value="{{ f.route_to }}" class="border p-2 rounded" required>
+            <input type="text" name="class[]" placeholder="Kelas" value="{{ f.flight_class }}" class="border p-2 rounded" required>
+            <input type="text" name="dep_date[]" placeholder="DD/MM/YYYY" value="{{ f.departure_date | fmt_date }}" class="border p-2 rounded" required onchange="autoArrivalDate(this)">
+            <input type="text" name="arr_date[]" placeholder="DD/MM/YYYY" value="{{ f.arrival_date | fmt_date }}" class="border p-2 rounded">
+            <input type="text" name="dep_time[]" placeholder="HH:MM" value="{{ f.departure_time | fmt_time }}" class="border p-2 rounded">
+            <input type="text" name="arr_time[]" placeholder="HH:MM" value="{{ f.arrival_time | fmt_time }}" class="border p-2 rounded">
+            <button type="button" onclick="removeFlight(this)" class="text-red-500">Hapus</button>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="flight-row grid grid-cols-5 gap-3 mb-3 p-3 bg-gray-50 rounded items-start">
+            <div class="flex flex-col gap-1">
+              <img src="" class="airline-logo h-6 object-contain hidden" />
+              <select name="airline[]" class="airline-select border p-2 rounded w-full text-sm" required onchange="showLogo(this)">
+                <option value="">Maskapai</option>
+                {% for airline in airlines %}
+                <option value="{{ airline.name }}" data-logo="{{ airline.logo }}">{{ airline.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <input type="text" name="flight_no[]" placeholder="No Penerbangan" class="border p-2 rounded" required oninput="lookupSchedule(this)">
+            <input type="text" name="route_from[]" placeholder="Dari" class="border p-2 rounded" required>
+            <input type="text" name="route_to[]" placeholder="Ke" class="border p-2 rounded" required>
+            <input type="text" name="class[]" placeholder="Kelas" class="border p-2 rounded" required>
+            <input type="text" name="dep_date[]" placeholder="DD/MM/YYYY" class="border p-2 rounded" required onchange="autoArrivalDate(this)">
+            <input type="text" name="arr_date[]" placeholder="DD/MM/YYYY" class="border p-2 rounded">
+            <input type="text" name="dep_time[]" placeholder="HH:MM" class="border p-2 rounded">
+            <input type="text" name="arr_time[]" placeholder="HH:MM" class="border p-2 rounded">
+            <button type="button" onclick="removeFlight(this)" class="text-red-500">Hapus</button>
+          </div>
+        {% endif %}
+      </div>
+      <button type="button" onclick="addFlight()" class="mt-3 bg-green-500 text-white px-3 py-1 rounded">+ Tambah Penerbangan</button>
+      <div class="mt-4">
+        <label>PNR</label>
+        <input type="text" name="pnr" value="{{ invoice.pnr if invoice else '' }}" placeholder="Auto jika kosong" class="border p-2 rounded w-1/4">
+      </div>
+      <div class="flex justify-between mt-4">
+        <button type="button" onclick="prevStep()" class="bg-gray-300 px-4 py-2 rounded">Sebelumnya</button>
+        <button type="button" onclick="nextStep()" class="bg-blue-600 text-white px-4 py-2 rounded">Selanjutnya</button>
+      </div>
+    </section>
+
+    <!-- STEP 3: Harga -->
+    <section class="step-content bg-white p-6 rounded-xl shadow hidden">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">3. Kalkulasi Harga</h2>
+
+      <!-- KALKULATOR MINI OVERLAY (fixed, floating) -->
+
+      <div id="miniCalcPanel" class="hidden fixed bottom-24 right-6 z-50 bg-slate-900 border border-slate-600 rounded-2xl shadow-2xl overflow-hidden" style="width:260px">
+        <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
+          <span class="text-white text-sm font-bold">📱 Kalkulator</span>
+          <button type="button" onclick="toggleCalc()" class="text-slate-400 hover:text-white text-lg leading-none">×</button>
+        </div>
+        <!-- Display -->
+        <div class="px-4 py-3 bg-slate-950">
+          <div id="calcExpr" class="text-slate-500 text-xs text-right min-h-4 mb-1 truncate"></div>
+          <div id="calcDisplay" class="text-white text-2xl font-mono text-right truncate">0</div>
+        </div>
+        <!-- Buttons -->
+        <div class="grid grid-cols-4 gap-px bg-slate-700 p-px">
+          {% for btn in ['C','±','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','⌫','='] %}
+          <button type="button"
+            onclick="calcBtn('{{ btn }}')"
+            class="py-3 text-sm font-semibold transition-colors
+              {{ 'col-span-1 bg-red-900 hover:bg-red-800 text-red-300' if btn == 'C' else
+                 'bg-blue-800 hover:bg-blue-700 text-white' if btn in ['÷','×','−','+','='] else
+                 'bg-slate-800 hover:bg-slate-700 text-white' }}
+              {{ 'col-span-1' if btn != '0' else '' }}">
+            {{ btn }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Floating calculator toggle button -->
+      <div class="fixed bottom-6 right-6 z-50">
+        <button type="button" onclick="toggleCalc()"
+          class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl transition-all hover:scale-110"
+          title="Buka Kalkulator">
+          🧮
+        </button>
+      </div>
+
+      <!-- Internasional: Kurs & Mata Uang -->
+      {% if type == 'international' %}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-blue-50 p-4 rounded">
+        <div>
+          <label class="block text-sm font-medium">Mata Uang Nett <span class="text-red-500">*</span></label>
+          <select name="foreign_currency_id" id="foreign_currency_id" class="w-full border p-2 rounded" required onchange="updateKursDisplay()">
+            <option value="">Pilih Mata Uang</option>
+            {% for cur in currencies %}
+            <option value="{{ cur.id }}" data-code="{{ cur.code }}" data-rate="{{ cur.rates[-1].rate if cur.rates else 0 }}" {% if invoice and invoice.foreign_currency_id == cur.id %}selected{% endif %}>
+              {{ cur.code }} ({{ cur.symbol }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Kurs (1 {{ currency_code or 'USD' }} = Rp)</label>
+          <input type="text" name="exchange_rate" id="exchange_rate" class="w-full border p-2 rounded price-format" value="{% if invoice %}{{ '{:,.0f}'.format(invoice.exchange_rate) }}{% endif %}" readonly>
+        </div>
+        <div>
+          <button type="button" onclick="fetchLiveKurs()" class="bg-blue-500 text-white px-3 py-2 rounded mt-6">Ambil Kurs Terbaru</button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Adult / Child / Infant - Tabel dengan Pax, Total, Nett Total -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-gray-100 text-gray-600 text-xs uppercase">
+              <th class="px-3 py-2 text-left font-semibold border border-gray-200 w-24">Tipe PAX</th>
+              <th class="px-3 py-2 text-center font-semibold border border-gray-200 w-20">Jml PAX</th>
+              <th class="px-3 py-2 text-center font-semibold border border-gray-200">Harga Jual / PAX</th>
+              <th class="px-3 py-2 text-center font-semibold border border-gray-200 bg-blue-50 text-blue-700">Total Jual</th>
+              <th class="px-3 py-2 text-center font-semibold border border-gray-200">Harga Nett / PAX</th>
+              <th class="px-3 py-2 text-center font-semibold border border-gray-200 bg-green-50 text-green-700">Total Nett</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Adult -->
+            <tr class="bg-blue-50/40">
+              <td class="px-3 py-2 border border-gray-200 font-semibold text-blue-700">👨 Adult</td>
+              <td class="px-3 py-2 border border-gray-200 text-center">
+                <input type="number" name="adult_count" id="adult_count" min="0" value="{{ invoice.adult_count if invoice else 1 }}"
+                  class="w-16 border border-gray-300 p-1.5 rounded text-center font-bold text-blue-700 focus:ring-2 focus:ring-blue-300 outline-none"
+                  oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="adult_sell" id="adult_sell"
+                  value="{{ '{:,.0f}'.format(invoice.adult_sell) if invoice and invoice.adult_sell else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-blue-300 outline-none" required
+                  placeholder="0" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-blue-50">
+                <div id="adult_total_sell" class="text-center font-bold text-blue-700 text-sm">0</div>
+                <input type="hidden" id="adult_total_sell_val" value="0">
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="adult_nett" id="adult_nett"
+                  value="{{ '{:,.0f}'.format(invoice.adult_nett) if invoice and invoice.adult_nett else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-green-300 outline-none" required
+                  placeholder="0" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-green-50">
+                <div id="adult_total_nett" class="text-center font-bold text-green-700 text-sm">0</div>
+              </td>
+            </tr>
+            <!-- Child -->
+            <tr>
+              <td class="px-3 py-2 border border-gray-200 font-semibold text-emerald-700">👧 Child</td>
+              <td class="px-3 py-2 border border-gray-200 text-center">
+                <input type="number" name="child_count" id="child_count" min="0" value="{{ invoice.child_count if invoice else 0 }}"
+                  class="w-16 border border-gray-300 p-1.5 rounded text-center font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-300 outline-none"
+                  oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="child_sell" id="child_sell"
+                  value="{{ '{:,.0f}'.format(invoice.child_sell) if invoice and invoice.child_sell else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-emerald-300 outline-none"
+                  placeholder="0 (opsional)" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-blue-50">
+                <div id="child_total_sell" class="text-center font-bold text-blue-700 text-sm">0</div>
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="child_nett" id="child_nett"
+                  value="{{ '{:,.0f}'.format(invoice.child_nett) if invoice and invoice.child_nett else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-green-300 outline-none"
+                  placeholder="0" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-green-50">
+                <div id="child_total_nett" class="text-center font-bold text-green-700 text-sm">0</div>
+              </td>
+            </tr>
+            <!-- Infant -->
+            <tr class="bg-red-50/30">
+              <td class="px-3 py-2 border border-gray-200 font-semibold text-orange-700">👶 Infant</td>
+              <td class="px-3 py-2 border border-gray-200 text-center">
+                <input type="number" name="infant_count" id="infant_count" min="0" value="{{ invoice.infant_count if invoice else 0 }}"
+                  class="w-16 border border-gray-300 p-1.5 rounded text-center font-bold text-orange-700 focus:ring-2 focus:ring-orange-300 outline-none"
+                  oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="infant_sell" id="infant_sell"
+                  value="{{ '{:,.0f}'.format(invoice.infant_sell) if invoice and invoice.infant_sell else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-orange-300 outline-none"
+                  placeholder="0 (opsional)" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-blue-50">
+                <div id="infant_total_sell" class="text-center font-bold text-blue-700 text-sm">0</div>
+              </td>
+              <td class="px-3 py-2 border border-gray-200">
+                <input type="text" name="infant_nett" id="infant_nett"
+                  value="{{ '{:,.0f}'.format(invoice.infant_nett) if invoice and invoice.infant_nett else '' }}"
+                  class="w-full border border-gray-300 p-1.5 rounded price-format focus:ring-2 focus:ring-green-300 outline-none"
+                  placeholder="0" oninput="recalcPax()">
+              </td>
+              <td class="px-3 py-2 border border-gray-200 bg-green-50">
+                <div id="infant_total_nett" class="text-center font-bold text-green-700 text-sm">0</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Service Fee, Bagasi -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+        <div>
+          <label class="text-sm font-medium">Service Fee</label>
+          <input type="text" name="service_fee" id="service_fee" value="{{ invoice.service_fee if invoice else '' }}" class="w-full border p-2 rounded price-format">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Bagasi (Jual)</label>
+          <input type="text" name="baggage_customer" id="baggage_customer" value="{{ invoice.baggage_customer_price if invoice else '' }}" class="w-full border p-2 rounded price-format">
+        </div>
+        <div>
+          <label class="text-sm font-medium">Bagasi (Nett)</label>
+          <input type="text" name="baggage_nett" id="baggage_nett" value="{{ invoice.baggage_nett_price if invoice else '' }}" class="w-full border p-2 rounded price-format">
+        </div>
+      </div>
+
+      <!-- Diskon & Keep -->
+      <div class="grid grid-cols-2 gap-4 mt-6">
+        <div>
+          <label>Diskon</label>
+          <select name="discount_type" id="discount_type" class="border p-2 rounded w-full">
+            <option value="Manual" {% if invoice and invoice.discount_type=='Manual' %}selected{% endif %}>Manual</option>
+            <option value="1/2" {% if invoice and invoice.discount_type=='1/2' %}selected{% endif %}>1/2</option>
+            <option value="3/2" {% if invoice and invoice.discount_type=='3/2' %}selected{% endif %}>3/2</option>
+          </select>
+          <input type="text" name="discount_amount" id="discount_amount" value="{{ invoice.discount_amount if invoice else '' }}" class="w-full border p-2 rounded mt-1 price-format">
+        </div>
+        <div>
+          <label>Keep</label>
+          <select name="keep_type" id="keep_type" class="border p-2 rounded w-full">
+            <option value="Manual" {% if invoice and invoice.keep_type=='Manual' %}selected{% endif %}>Manual</option>
+            <option value="1/2" {% if invoice and invoice.keep_type=='1/2' %}selected{% endif %}>1/2</option>
+            <option value="3/2" {% if invoice and invoice.keep_type=='3/2' %}selected{% endif %}>3/2</option>
+          </select>
+          <input type="text" name="keep_amount" id="keep_amount" value="{{ invoice.keep_amount if invoice else '' }}" class="w-full border p-2 rounded mt-1 price-format">
+        </div>
+      </div>
+
+      <!-- Ringkasan Perhitungan -->
+      <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div class="text-center">
+          <div class="text-xs text-gray-500 mb-1">Total Nett</div>
+          <div id="calcTotalNettIDR" class="font-bold text-green-600 text-base">0</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xs text-gray-500 mb-1">Subtotal Jual</div>
+          <div id="calcSubtotal" class="font-semibold text-gray-700 text-base">0</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xs text-gray-500 mb-1">Total Jual</div>
+          <div id="calcTotal" class="font-bold text-blue-600 text-base">0</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xs text-gray-500 mb-1">Profit</div>
+          <div id="calcProfit" class="font-bold text-emerald-600 text-base">0</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between mt-4">
+        <button type="button" onclick="prevStep()" class="bg-gray-300 px-4 py-2 rounded">Sebelumnya</button>
+        <button type="button" onclick="nextStep()" class="bg-blue-600 text-white px-4 py-2 rounded">Selanjutnya</button>
+      </div>
+    </section>
+
+    <!-- STEP 4: Passenger Names -->
+    <section class="step-content bg-white p-6 rounded-xl shadow hidden">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">4. Data Penumpang</h2>
+      <div id="passengerContainer">
+        {% if passengers %}
+          {% for p in passengers %}
+          <div class="pass-row flex items-center gap-2 mb-2">
+            <select name="pax_type[]" class="border p-2 rounded">
+              <option value="Adult" {% if p.pax_type=='Adult' %}selected{% endif %}>Adult</option>
+              <option value="Child" {% if p.pax_type=='Child' %}selected{% endif %}>Child</option>
+              <option value="Infant" {% if p.pax_type=='Infant' %}selected{% endif %}>Infant</option>
+            </select>
+            <input type="text" name="pax_name[]" placeholder="Nama" value="{{ p.name }}" class="border p-2 rounded flex-1" required>
+            <input type="text" name="ticket_number[]" placeholder="No Tiket/PNR" value="{{ p.ticket_number }}" class="border p-2 rounded w-40">
+            <button type="button" onclick="removePassenger(this)" class="text-red-500">Hapus</button>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="pass-row flex items-center gap-2 mb-2">
+            <select name="pax_type[]" class="border p-2 rounded"><option>Adult</option><option>Child</option><option>Infant</option></select>
+            <input type="text" name="pax_name[]" placeholder="Nama" class="border p-2 rounded flex-1" required>
+            <input type="text" name="ticket_number[]" placeholder="No Tiket/PNR" class="border p-2 rounded w-40">
+            <button type="button" onclick="removePassenger(this)" class="text-red-500">Hapus</button>
+          </div>
+        {% endif %}
+      </div>
+      <div class="mt-2 text-sm text-gray-500">
+        <span class="text-red-500">*</span> Minimal 1 penumpang wajib diisi
+      </div>
+      <button type="button" onclick="addPassenger()" class="mt-3 bg-green-500 text-white px-3 py-1 rounded">+ Tambah Penumpang</button>
+      <div class="flex justify-between mt-4">
+        <button type="button" onclick="prevStep()" class="bg-gray-300 px-4 py-2 rounded">Sebelumnya</button>
+        <button type="button" onclick="nextStep()" class="bg-blue-600 text-white px-4 py-2 rounded">Selanjutnya</button>
+      </div>
+    </section>
+
+    <!-- STEP 5: Preview Modern -->
+    <section class="step-content bg-white p-6 rounded-xl shadow hidden" id="previewSection">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-800">📋 Preview Invoice</h2>
+        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium" id="pnrBadge">Auto</span>
+      </div>
+
+      <div id="previewContent" class="space-y-6">
+        <!-- Diisi oleh JavaScript -->
+      </div>
+
+      <div class="flex flex-wrap gap-3 mt-8 border-t pt-6">
+        <button type="button" onclick="goToStep(2)" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition">
+          ✏️ Edit Penerbangan
+        </button>
+        <button type="button" onclick="goToStep(3)" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition">
+          💰 Edit Harga
+        </button>
+        <button type="button" onclick="goToStep(4)" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition">
+          👥 Edit Penumpang
+        </button>
+        <div class="flex-1"></div>
+        <button type="submit" name="action" value="pdf" class="bg-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-600 transition">
+          🖨️ Cetak PDF
+        </button>
+        <button type="submit" name="action" value="save" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition">
+          ✅ Simpan Invoice
+        </button>
+      </div>
+    </section>
+  </form>
+</div>
+
+<!-- JavaScript Lengkap -->
+<script>
+  let currentStep = 1;
+  const steps = document.querySelectorAll('.step-content');
+  const indicators = document.querySelectorAll('.step-indicator');
+  const invoiceType = '{{ type }}'; // 'domestik' atau 'international'
+
+  function updateSteps() {
+    steps.forEach((s, i) => s.classList.toggle('hidden', i !== currentStep - 1));
+    indicators.forEach((ind, i) => {
+      ind.classList.toggle('bg-blue-100', i === currentStep - 1);
+      ind.classList.toggle('text-blue-700', i === currentStep - 1);
+    });
+    if (currentStep === 5) generatePreview();
+  }
+
+  // Fungsi validasi form sebelum submit
+  function validateFormBeforeSubmit() {
+    // Cek minimal 1 penumpang terisi
+    const paxRows = document.querySelectorAll('.pass-row');
+    let hasValidPassenger = false;
+    paxRows.forEach(row => {
+      const nameInput = row.querySelector('input[name="pax_name[]"]');
+      if (nameInput && nameInput.value.trim()) {
+        hasValidPassenger = true;
+      }
+    });
+    
+    if (!hasValidPassenger) {
+      Swal.fire('Perhatian', 'Minimal 1 penumpang wajib diisi', 'warning');
+      // Arahkan ke step 4
+      currentStep = 4;
+      updateSteps();
+      return false;
+    }
+
+    // Cek minimal 1 penerbangan terisi
+    const airlineSelects = document.querySelectorAll('select[name="airline[]"]');
+    let hasValidFlight = false;
+    airlineSelects.forEach(select => {
+      if (select.value && select.value.trim()) {
+        hasValidFlight = true;
+      }
+    });
+    
+    if (!hasValidFlight) {
+      Swal.fire('Perhatian', 'Minimal 1 penerbangan wajib diisi', 'warning');
+      currentStep = 2;
+      updateSteps();
+      return false;
+    }
+
+    // Cek kolom required standard
+    const requiredFields = document.querySelectorAll('#invoiceForm [required]');
+    let empty = false;
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        field.classList.add('border-red-500', 'bg-red-50');
+        empty = true;
+        
+        // Scroll ke field yang kosong
+        if (empty && !window.hasScrolled) {
+          field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          window.hasScrolled = true;
+        }
+      } else {
+        field.classList.remove('border-red-500', 'bg-red-50');
+      }
+    });
+    
+    if (empty) {
+      Swal.fire('Perhatian', 'Mohon lengkapi semua kolom yang wajib diisi (bertanda bintang merah)', 'warning');
+      window.hasScrolled = false;
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Validasi untuk tombol next step (opsional, cek kolom required di step tertentu)
+  function validateCurrentStep() {
+    const currentSection = steps[currentStep - 1];
+    const requiredFields = currentSection.querySelectorAll('[required]');
+    let empty = false;
+    
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        field.classList.add('border-red-500', 'bg-red-50');
+        empty = true;
+      } else {
+        field.classList.remove('border-red-500', 'bg-red-50');
+      }
+    });
+    
+    if (empty) {
+      Swal.fire('Perhatian', 'Mohon lengkapi kolom yang bertanda bintang (*) sebelum melanjutkan', 'warning');
+      return false;
+    }
+    return true;
+  }
+
+  window.nextStep = () => { 
+    if (currentStep < 5) {
+      if (validateCurrentStep()) {
+        currentStep++; 
+        updateSteps(); 
+        calculate();
+      }
+    }
+  }
+  
+  window.prevStep = () => { 
+    if (currentStep > 1) {
+      currentStep--; 
+      updateSteps(); 
+    }
+  }
+  
+  window.goToStep = (n) => { 
+    currentStep = n; 
+    updateSteps(); 
+  }
+
+  // ========== AGENT FUNCTIONS ==========
+  window.loadAgents = async function() {
+    const catId = document.getElementById('agency_category_id').value;
+    const agentSelect = document.getElementById('agent_id');
+    if (!catId) {
+      agentSelect.innerHTML = '<option value="">Pilih Agent</option>';
+      return;
+    }
+    const res = await fetch(`/api/agents/by_category/${catId}`);
+    const agents = await res.json();
+    agentSelect.innerHTML = '<option value="">Pilih Agent</option>';
+    agents.forEach(agent => {
+      agentSelect.innerHTML += `<option value="${agent.id}" data-info="${agent.email || ''} | ${agent.phone || ''} | ${agent.address || ''}">${agent.name}</option>`;
+    });
+  }
+
+  window.showAgentInfo = function() {
+    const select = document.getElementById('agent_id');
+    const selected = select.options[select.selectedIndex];
+    const info = selected?.dataset?.info || '';
+    document.getElementById('agentInfo').innerHTML = info ? `📧 ${info}` : '';
+  }
+
+  // ========== FLIGHT FUNCTIONS ==========
+  window.showLogo = function(select) {
+    const row = select.closest('.flight-row');
+    const logo = row.querySelector('.airline-logo');
+    const option = select.options[select.selectedIndex];
+    if (option && option.dataset.logo) {
+      logo.src = '/static/uploads/logos/' + option.dataset.logo;
+      logo.classList.remove('hidden');
+    } else {
+      logo.classList.add('hidden');
+    }
+  }
+
+  // ========== AUTO-SCHEDULE LOOKUP ==========
+  let scheduleDebounce = null;
+  window.lookupSchedule = async function(flightNoInput) {
+    clearTimeout(scheduleDebounce);
+    scheduleDebounce = setTimeout(async () => {
+      const val = flightNoInput.value.trim().toUpperCase();
+      if (!val || val.length < 2) return;
+      try {
+        const res = await fetch(`/api/flight-schedule?flight_no=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        if (!data) return;
+        const row = flightNoInput.closest('.flight-row');
+        if (!row) return;
+        // Auto-fill maskapai
+        const airlineSelect = row.querySelector('select[name="airline[]"]');
+        if (airlineSelect && data.airline) {
+          for (let opt of airlineSelect.options) {
+            if (opt.value.toUpperCase() === data.airline.toUpperCase()) {
+              airlineSelect.value = opt.value;
+              showLogo(airlineSelect);
+              break;
+            }
+          }
+        }
+        // Auto-fill rute
+        const routeFrom = row.querySelector('input[name="route_from[]"]');
+        const routeTo   = row.querySelector('input[name="route_to[]"]');
+        const depTime   = row.querySelector('input[name="dep_time[]"]');
+        const arrTime   = row.querySelector('input[name="arr_time[]"]');
+        const cls       = row.querySelector('input[name="class[]"]');
+        if (routeFrom && data.route_from && !routeFrom.value) routeFrom.value = data.route_from;
+        if (routeTo   && data.route_to   && !routeTo.value)   routeTo.value   = data.route_to;
+        if (depTime   && data.departure_time && !depTime.value)  depTime.value  = data.departure_time;
+        if (arrTime   && data.arrival_time   && !arrTime.value)  arrTime.value  = data.arrival_time;
+        if (cls       && data.flight_class   && !cls.value)      cls.value      = data.flight_class;
+        // Subtle flash
+        flightNoInput.style.borderColor = '#16a34a';
+        setTimeout(() => { flightNoInput.style.borderColor = ''; }, 1500);
+      } catch(e) {}
+    }, 400);
+  }
+
+  window.autoArrivalDate = (el) => {
+    const row = el.closest('.flight-row');
+    const arrDate = row.querySelector('input[name="arr_date[]"]');
+    if (el.value && !arrDate.value) arrDate.value = el.value;
+  }
+
+  window.addFlight = () => {
+    const container = document.getElementById('flightsContainer');
+    const row = document.createElement('div');
+    row.className = 'flight-row grid grid-cols-5 gap-3 mb-3 p-3 bg-gray-50 rounded items-start';
+    row.innerHTML = `
+      <div class="flex flex-col gap-1">
+        <img src="" class="airline-logo h-6 object-contain hidden" />
+        <select name="airline[]" class="airline-select border p-2 rounded w-full text-sm" required onchange="showLogo(this)">
+          <option value="">Maskapai</option>
+          {% for airline in airlines %}
+          <option value="{{ airline.name }}" data-logo="{{ airline.logo }}">{{ airline.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <input type="text" name="flight_no[]" placeholder="No Penerbangan" class="border p-2 rounded" required oninput="lookupSchedule(this)">
+      <input type="text" name="route_from[]" placeholder="Dari" class="border p-2 rounded" required>
+      <input type="text" name="route_to[]" placeholder="Ke" class="border p-2 rounded" required>
+      <input type="text" name="class[]" placeholder="Kelas" class="border p-2 rounded" required>
+      <input type="text" name="dep_date[]" placeholder="DD/MM/YYYY" class="border p-2 rounded" required onchange="autoArrivalDate(this)">
+      <input type="text" name="arr_date[]" placeholder="DD/MM/YYYY" class="border p-2 rounded">
+      <input type="text" name="dep_time[]" placeholder="HH:MM" class="border p-2 rounded">
+      <input type="text" name="arr_time[]" placeholder="HH:MM" class="border p-2 rounded">
+      <button type="button" onclick="removeFlight(this)" class="text-red-500">Hapus</button>
+    `;
+    container.appendChild(row);
+  }
+
+  window.removeFlight = (btn) => btn.closest('.flight-row').remove();
+
+  // ========== KURS FUNCTIONS (International) ==========
+  window.updateKursDisplay = function() {
+    const currencySelect = document.getElementById('foreign_currency_id');
+    const selected = currencySelect.options[currencySelect.selectedIndex];
+    const rate = selected?.dataset?.rate || 0;
+    document.getElementById('exchange_rate').value = Number(rate).toLocaleString('id-ID');
+    calculate();
+  }
+
+  window.fetchLiveKurs = async function() {
+    const res = await fetch('/api/kurs');
+    const data = await res.json();
+    const currencySelect = document.getElementById('foreign_currency_id');
+    const selected = currencySelect.options[currencySelect.selectedIndex];
+    const code = selected?.dataset?.code;
+    if (code && data[code]) {
+      document.getElementById('exchange_rate').value = Number(data[code]).toLocaleString('id-ID');
+      calculate();
+    } else {
+      Swal.fire('Info', 'Kurs tidak tersedia untuk mata uang ini', 'info');
+    }
+  }
+
+  // ========== PRICE CALCULATION ==========
+  function parsePrice(value) {
+    if (!value) return 0;
+    return parseInt(String(value).replace(/\./g, '')) || 0;
+  }
+
+  window.calculate = function() {
+    // Hitung jumlah pax dari daftar penumpang
+    const paxRows = document.querySelectorAll('.pass-row');
+    let adultCnt = 0, childCnt = 0, infantCnt = 0;
+    paxRows.forEach(row => {
+      const typeSelect = row.querySelector('select');
+      const nameInput = row.querySelector('input[name="pax_name[]"]');
+      if (typeSelect && nameInput && nameInput.value.trim()) {
+        const type = typeSelect.value;
+        if (type === 'Adult') adultCnt++;
+        else if (type === 'Child') childCnt++;
+        else if (type === 'Infant') infantCnt++;
+      }
+    });
+
+    const aSell = parsePrice(document.getElementById('adult_sell')?.value);
+    const cSell = parsePrice(document.getElementById('child_sell')?.value);
+    const iSell = parsePrice(document.getElementById('infant_sell')?.value);
+
+    let aNett = 0, cNett = 0, iNett = 0;
+    const exchangeRate = parsePrice(document.getElementById('exchange_rate')?.value);
+
+    if (invoiceType === 'international') {
+      const aForeign = parsePrice(document.getElementById('adult_foreign_nett')?.value);
+      const cForeign = parsePrice(document.getElementById('child_foreign_nett')?.value);
+      const iForeign = parsePrice(document.getElementById('infant_foreign_nett')?.value);
+      aNett = aForeign * exchangeRate;
+      cNett = cForeign * exchangeRate;
+      iNett = iForeign * exchangeRate;
+    } else {
+      aNett = parsePrice(document.getElementById('adult_nett')?.value);
+      cNett = parsePrice(document.getElementById('child_nett')?.value);
+      iNett = parsePrice(document.getElementById('infant_nett')?.value);
+    }
+
+    const seatSell = adultCnt * aSell + childCnt * cSell + infantCnt * iSell;
+    const seatNett = adultCnt * aNett + childCnt * cNett + infantCnt * iNett;
+    const svc = parsePrice(document.getElementById('service_fee')?.value);
+    const bagCust = parsePrice(document.getElementById('baggage_customer')?.value);
+    const bagNett = parsePrice(document.getElementById('baggage_nett')?.value);
+    const disc = parsePrice(document.getElementById('discount_amount')?.value);
+    const keep = parsePrice(document.getElementById('keep_amount')?.value);
+
+    const subtotal = seatSell + svc + bagCust;
+    const total = subtotal - disc - keep;
+    const nett = seatNett + bagNett;
+    const profit = total - nett;
+
+    const spanTotalNett = document.getElementById('calcTotalNettIDR');
+    if (spanTotalNett) spanTotalNett.innerText = nett.toLocaleString('id-ID');
+    const spanSubtotal = document.getElementById('calcSubtotal');
+    if (spanSubtotal) spanSubtotal.innerText = subtotal.toLocaleString('id-ID');
+    const spanTotal = document.getElementById('calcTotal');
+    if (spanTotal) spanTotal.innerText = total.toLocaleString('id-ID');
+    const spanProfit = document.getElementById('calcProfit');
+    if (spanProfit) spanProfit.innerText = profit.toLocaleString('id-ID');
+
+    // Sync ke kalkulator cepat di atas (quickTotal fields)
+    const totalPax = adultCnt + childCnt + infantCnt;
+    const qtj = document.getElementById('quickTotalJual');
+    const qtn = document.getElementById('quickTotalNett');
+    const qa  = document.getElementById('quickAdult');
+    const qc  = document.getElementById('quickChild');
+    const qi  = document.getElementById('quickInfant');
+    if (qtj && !qtj.dataset.manualEdit) qtj.value = total > 0 ? total.toLocaleString('id-ID') : '';
+    if (qtn && !qtn.dataset.manualEdit) qtn.value = nett > 0 ? nett.toLocaleString('id-ID') : '';
+    if (qa  && !qa.dataset.manualEdit)  qa.value  = adultCnt  || '';
+    if (qc  && !qc.dataset.manualEdit)  qc.value  = childCnt  || '';
+    if (qi  && !qi.dataset.manualEdit)  qi.value  = infantCnt || '';
+    calcPerPax();
+  }
+
+  // ========== KALKULATOR CEPAT: Per Pax ==========
+  window.formatQuickInput = function(el) {
+    el.dataset.manualEdit = '1';
+    let v = el.value.replace(/[^0-9]/g, '');
+    el.value = v ? Number(v).toLocaleString('id-ID') : '';
+  }
+
+  function parseRp(el) {
+    return parseInt((document.getElementById(el)?.value || '').replace(/\./g,'').replace(/,/g,'')) || 0;
+  }
+
+  window.calcPerPax = function() {
+    const tj = parseRp('quickTotalJual');
+    const tn = parseRp('quickTotalNett');
+    const a  = parseInt(document.getElementById('quickAdult')?.value)  || 0;
+    const c  = parseInt(document.getElementById('quickChild')?.value)  || 0;
+    const i  = parseInt(document.getElementById('quickInfant')?.value) || 0;
+    const totalPax = a + c + i;
+
+    function setRes(jualId, nettId, count) {
+      const rj = document.getElementById(jualId);
+      const rn = document.getElementById(nettId);
+      if (totalPax > 0 && count > 0) {
+        const perJ = Math.round(tj / totalPax);
+        const perN = Math.round(tn / totalPax);
+        if (rj) rj.textContent = 'Rp ' + perJ.toLocaleString('id-ID');
+        if (rn) rn.textContent = 'Rp ' + perN.toLocaleString('id-ID');
+      } else {
+        if (rj) rj.textContent = count === 0 ? '—' : (totalPax > 0 ? 'Rp ' + Math.round(tj/totalPax).toLocaleString('id-ID') : '—');
+        if (rn) rn.textContent = count === 0 ? '—' : (totalPax > 0 ? 'Rp ' + Math.round(tn/totalPax).toLocaleString('id-ID') : '—');
+      }
+    }
+    setRes('calcResAdultJual',  'calcResAdultNett',  a);
+    setRes('calcResChildJual',  'calcResChildNett',  c);
+    setRes('calcResInfantJual', 'calcResInfantNett', i);
+  }
+
+  window.applyCalcToFields = function() {
+    const tj = parseRp('quickTotalJual');
+    const tn = parseRp('quickTotalNett');
+    const a  = parseInt(document.getElementById('quickAdult')?.value)  || 0;
+    const c  = parseInt(document.getElementById('quickChild')?.value)  || 0;
+    const i  = parseInt(document.getElementById('quickInfant')?.value) || 0;
+    const totalPax = a + c + i;
+    if (totalPax === 0) { alert('Isi jumlah Adult/Child/Infant terlebih dahulu.'); return; }
+    const perJ = Math.round(tj / totalPax);
+    const perN = Math.round(tn / totalPax);
+    function fillField(id, val) {
+      const el = document.getElementById(id);
+      if (el && val > 0) { el.value = val.toLocaleString('id-ID'); el.dispatchEvent(new Event('input')); }
+    }
+    if (a > 0) { fillField('adult_sell', perJ); fillField('adult_nett', perN); }
+    if (c > 0) { fillField('child_sell', perJ); fillField('child_nett', perN); }
+    if (i > 0) { fillField('infant_sell', perJ); fillField('infant_nett', perN); }
+    calculate();
+
+    // Flash feedback
+    const btn = event.target;
+    btn.textContent = '✓ Diterapkan!';
+    btn.classList.add('bg-green-600');
+    setTimeout(() => { btn.textContent = '↓ Terapkan ke Kolom Harga'; btn.classList.remove('bg-green-600'); }, 1500);
+  }
+
+  window.resetCalc = function() {
+    ['quickTotalJual','quickTotalNett'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; delete el.dataset.manualEdit; }
+    });
+    ['quickAdult','quickChild','quickInfant'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; delete el.dataset.manualEdit; }
+    });
+    ['calcResAdultJual','calcResAdultNett','calcResChildJual','calcResChildNett','calcResInfantJual','calcResInfantNett']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
+  }
+
+  // Mark total inputs as manual when user types in them
+  ['quickTotalJual','quickTotalNett'].forEach(id => {
+    document.getElementById(id)?.addEventListener('focus', function() { delete this.dataset.manualEdit; });
+  });
+
+  // ========== KALKULATOR MINI ==========
+  let calcVal = '0', calcExprStr = '', calcLastOp = null, calcNewNum = true;
+
+  window.toggleCalc = function() {
+    const p = document.getElementById('miniCalcPanel');
+    p.classList.toggle('hidden');
+  }
+
+  window.calcBtn = function(b) {
+    const disp = document.getElementById('calcDisplay');
+    const expr = document.getElementById('calcExpr');
+    if (b === 'C') {
+      calcVal = '0'; calcExprStr = ''; calcLastOp = null; calcNewNum = true;
+    } else if (b === '⌫') {
+      calcVal = calcVal.length > 1 ? calcVal.slice(0,-1) : '0';
+    } else if (b === '±') {
+      calcVal = String(-parseFloat(calcVal));
+    } else if (b === '%') {
+      calcVal = String(parseFloat(calcVal)/100);
+    } else if (['÷','×','−','+'].includes(b)) {
+      calcExprStr = parseFloat(calcVal).toLocaleString('id-ID') + ' ' + b + ' ';
+      calcLastOp = b; calcNewNum = true;
+    } else if (b === '=') {
+      const a = parseFloat(calcExprStr.split(' ')[0].replace(/\./g,'').replace(',','.'));
+      const cv = parseFloat(calcVal.replace(/\./g,'').replace(',','.'));
+      let res = cv;
+      if (calcLastOp==='÷') res = a/cv;
+      else if (calcLastOp==='×') res = a*cv;
+      else if (calcLastOp==='−') res = a-cv;
+      else if (calcLastOp==='+') res = a+cv;
+      calcVal = String(Math.round(res*1e10)/1e10);
+      calcExprStr = ''; calcLastOp = null; calcNewNum = true;
+    } else if (b === '.') {
+      if (calcNewNum) { calcVal = '0.'; calcNewNum = false; }
+      else if (!calcVal.includes('.')) calcVal += '.';
+    } else {
+      if (calcNewNum || calcVal === '0') { calcVal = b; calcNewNum = false; }
+      else calcVal += b;
+    }
+    const num = parseFloat(calcVal);
+    disp.textContent = isNaN(num) ? calcVal : num.toLocaleString('id-ID');
+    expr.textContent = calcExprStr;
+  }
+
+  // Event listeners untuk auto calculate
+  const priceInputs = ['.price-format', '#service_fee', '#baggage_customer', '#baggage_nett', '#discount_amount', '#keep_amount'];
+  document.addEventListener('input', function(e) {
+    if (e.target.classList?.contains('price-format')) {
+      let val = e.target.value.replace(/[^0-9]/g, '');
+      if (val) e.target.value = Number(val).toLocaleString('id-ID');
+      // Hapus border merah saat user mulai mengetik
+      e.target.classList.remove('border-red-500', 'bg-red-50');
+    }
+    if (e.target.matches('.price-format, #service_fee, #baggage_customer, #baggage_nett, #discount_amount, #keep_amount, #adult_foreign_nett, #child_foreign_nett, #infant_foreign_nett, #exchange_rate')) {
+      calculate();
+    }
+    // Hapus border merah pada required field saat user mengisi
+    if (e.target.hasAttribute && e.target.hasAttribute('required')) {
+      if (e.target.value.trim()) {
+        e.target.classList.remove('border-red-500', 'bg-red-50');
+      }
+    }
+  });
+
+  // Event listener untuk perubahan passenger (tambah/hapus/ubah)
+  document.addEventListener('change', function(e) {
+    if (e.target.matches('select[name="pax_type[]"], input[name="pax_name[]"]')) {
+      calculate();
+      // Hapus border merah pada required field
+      if (e.target.hasAttribute && e.target.hasAttribute('required') && e.target.value.trim()) {
+        e.target.classList.remove('border-red-500', 'bg-red-50');
+      }
+    }
+  });
+
+
+  // ========== DATE / TIME INPUT MASKING ==========
+  function applyDateMask(el) {
+    if (el._dateMasked) return;
+    el._dateMasked = true;
+    el.placeholder = 'DD/MM/YYYY';
+    el.maxLength = 10;
+
+    el.addEventListener('keydown', function(e) {
+      if ([9,27,37,38,39,40].includes(e.keyCode)) return;
+      if (e.ctrlKey && [65,67,86,88].includes(e.keyCode)) return;
+      // Allow backspace/delete
+      if (e.keyCode === 8 || e.keyCode === 46) return;
+      // Block non-numeric
+      if (!/[0-9]/.test(e.key)) { e.preventDefault(); return; }
+    });
+
+    el.addEventListener('input', function() {
+      let pos = this.selectionStart;
+      let raw = this.value.replace(/\D/g, '').slice(0, 8);
+      let out = raw;
+      if (raw.length >= 3) {
+        out = raw.slice(0,2) + '/' + raw.slice(2);
+      }
+      if (raw.length >= 5) {
+        out = raw.slice(0,2) + '/' + raw.slice(2,4) + '/' + raw.slice(4);
+      }
+      this.value = out;
+      // Restore cursor, skip over separator chars
+      let newPos = pos;
+      if (pos === 2 || pos === 5) newPos = pos + 1;
+      try { this.setSelectionRange(newPos, newPos); } catch(e) {}
+    });
+  }
+
+  function applyTimeMask(el) {
+    if (el._timeMasked) return;
+    el._timeMasked = true;
+    el.placeholder = 'HH:MM';
+    el.maxLength = 5;
+
+    el.addEventListener('keydown', function(e) {
+      if ([9,27,37,38,39,40].includes(e.keyCode)) return;
+      if (e.ctrlKey && [65,67,86,88].includes(e.keyCode)) return;
+      if (e.keyCode === 8 || e.keyCode === 46) return;
+      if (!/[0-9]/.test(e.key)) { e.preventDefault(); return; }
+    });
+
+    el.addEventListener('input', function() {
+      let pos = this.selectionStart;
+      let raw = this.value.replace(/\D/g, '').slice(0, 4);
+      let out = raw.length >= 3 ? raw.slice(0,2) + ':' + raw.slice(2) : raw;
+      this.value = out;
+      let newPos = pos === 2 ? 3 : pos;
+      try { this.setSelectionRange(newPos, newPos); } catch(e) {}
+    });
+  }
+
+  function applyMasksToRow(row) {
+    row.querySelectorAll('input[name="dep_date[]"], input[name="arr_date[]"]').forEach(applyDateMask);
+    row.querySelectorAll('input[name="dep_time[]"], input[name="arr_time[]"]').forEach(applyTimeMask);
+  }
+
+  // Apply to all existing flight rows
+  document.querySelectorAll('.flight-row').forEach(applyMasksToRow);
+
+  // Format existing values that may come from DB without slashes
+  function formatExistingDateValue(val) {
+    if (!val) return val;
+    const digits = val.replace(/\D/g, '');
+    if (digits.length === 8) return digits.slice(0,2)+'/'+digits.slice(2,4)+'/'+digits.slice(4);
+    return val;
+  }
+  function formatExistingTimeValue(val) {
+    if (!val) return val;
+    const digits = val.replace(/\D/g, '');
+    if (digits.length === 4) return digits.slice(0,2)+':'+digits.slice(2);
+    return val;
+  }
+  document.querySelectorAll('input[name="dep_date[]"], input[name="arr_date[]"]').forEach(el => {
+    el.value = formatExistingDateValue(el.value);
+  });
+  document.querySelectorAll('input[name="dep_time[]"], input[name="arr_time[]"]').forEach(el => {
+    el.value = formatExistingTimeValue(el.value);
+  });
+
+  // Patch addFlight to apply masks to newly added rows
+  const _origAddFlight = window.addFlight;
+  window.addFlight = function() {
+    _origAddFlight();
+    const rows = document.querySelectorAll('.flight-row');
+    if (rows.length) applyMasksToRow(rows[rows.length - 1]);
+  };
+
+
+  // ========== PAX CALC ==========
+  function parsePrice(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    return parseFloat((el.value || '0').replace(/[,.]/g, '').replace(/(\d+)/,'$1')) || 0;
+  }
+  function fmtRp(n) {
+    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  }
+  window.recalcPax = function() {
+    const ac = parseInt(document.getElementById('adult_count')?.value) || 0;
+    const cc = parseInt(document.getElementById('child_count')?.value) || 0;
+    const ic = parseInt(document.getElementById('infant_count')?.value) || 0;
+    const as_ = parsePrice('adult_sell');  const an_ = parsePrice('adult_nett');
+    const cs  = parsePrice('child_sell');  const cn  = parsePrice('child_nett');
+    const is_ = parsePrice('infant_sell'); const in_ = parsePrice('infant_nett');
+
+    const atS = ac * as_, atN = ac * an_;
+    const ctS = cc * cs,  ctN = cc * cn;
+    const itS = ic * is_, itN = ic * in_;
+
+    const setEl = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = fmtRp(val); };
+    setEl('adult_total_sell', atS); setEl('adult_total_nett', atN);
+    setEl('child_total_sell', ctS); setEl('child_total_nett', ctN);
+    setEl('infant_total_sell', itS); setEl('infant_total_nett', itN);
+
+    // Feed into existing calc summary (recalculate is called from updateCalc too)
+    if (window.updateCalc) updateCalc();
+  };
+  recalcPax();
+    const container = document.getElementById('passengerContainer');
+    const row = document.createElement('div');
+    row.className = 'pass-row flex items-center gap-2 mb-2';
+    row.innerHTML = `
+      <select name="pax_type[]" class="border p-2 rounded"><option>Adult</option><option>Child</option><option>Infant</option></select>
+      <input type="text" name="pax_name[]" placeholder="Nama" class="border p-2 rounded flex-1" required>
+      <input type="text" name="ticket_number[]" placeholder="No Tiket/PNR" class="border p-2 rounded w-40">
+      <button type="button" onclick="removePassenger(this)" class="text-red-500">Hapus</button>
+    `;
+    container.appendChild(row);
+    calculate();
+  }
+
+  window.removePassenger = (btn) => {
+    btn.closest('.pass-row').remove();
+    calculate();
+  }
+
+  // ========== PREVIEW GENERATION (MODERN) ==========
+  function cleanPrice(val) {
+    if (!val) return 0;
+    return parseInt(String(val).replace(/[^0-9]/g, '')) || 0;
+  }
+
+  function generatePreview() {
+    const preview = document.getElementById('previewContent');
+    // Nama agensi diambil dari agent yang dipilih
+    const agentSelect = document.getElementById('agent_id');
+    const agentName = agentSelect?.options[agentSelect.selectedIndex]?.text || '';
+    const pnr = document.querySelector('[name="pnr"]')?.value || '(Auto)';
+    
+    // Update badge PNR
+    const pnrBadge = document.getElementById('pnrBadge');
+    if (pnrBadge) pnrBadge.innerText = pnr;
+
+    let html = `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Agensi</p>
+          <p class="font-semibold text-slate-800">${escapeHtml(agentName) || '-'}</p>
+        </div>
+      </div>
+    `;
+
+    // Flights
+    const airlines = document.getElementsByName('airline[]');
+    if (airlines.length > 0) {
+      let hasFlight = false;
+      let flightsHtml = `<div class="bg-white border rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">✈️ Penerbangan</h3>`;
+      for (let i = 0; i < airlines.length; i++) {
+        if (airlines[i] && airlines[i].value) {
+          hasFlight = true;
+          const fn = document.getElementsByName('flight_no[]')[i]?.value || '';
+          const from = document.getElementsByName('route_from[]')[i]?.value || '';
+          const to = document.getElementsByName('route_to[]')[i]?.value || '';
+          const dep = document.getElementsByName('dep_date[]')[i]?.value || '';
+          const arr = document.getElementsByName('arr_date[]')[i]?.value || '';
+          const dtime = document.getElementsByName('dep_time[]')[i]?.value || '';
+          const atime = document.getElementsByName('arr_time[]')[i]?.value || '';
+          flightsHtml += `
+            <div class="flex items-center justify-between py-2 border-b last:border-0">
+              <div>
+                <span class="font-medium text-slate-700">${escapeHtml(airlines[i].value)} ${escapeHtml(fn)}</span>
+                <span class="text-sm text-slate-500 ml-2">${escapeHtml(from)} → ${escapeHtml(to)}</span>
+              </div>
+              <div class="text-sm text-slate-600">
+                ${escapeHtml(dep)} ${escapeHtml(dtime)} - ${escapeHtml(arr)} ${escapeHtml(atime)}
+              </div>
+            </div>`;
+        }
+      }
+      flightsHtml += `</div>`;
+      if (hasFlight) html += flightsHtml;
+    }
+
+    // Hitung jumlah pax dari passenger rows
+    const paxRows = document.querySelectorAll('.pass-row');
+    let adultCnt = 0, childCnt = 0, infantCnt = 0;
+    paxRows.forEach(row => {
+      const typeSelect = row.querySelector('select');
+      const nameInput = row.querySelector('input[name="pax_name[]"]');
+      if (typeSelect && nameInput && nameInput.value.trim()) {
+        const type = typeSelect.value;
+        if (type === 'Adult') adultCnt++;
+        else if (type === 'Child') childCnt++;
+        else if (type === 'Infant') infantCnt++;
+      }
+    });
+    const totalPax = adultCnt + childCnt + infantCnt;
+
+    // Ambil harga
+    const adultSell = cleanPrice(document.querySelector('[name="adult_sell"]')?.value);
+    const childSell = cleanPrice(document.querySelector('[name="child_sell"]')?.value);
+    const infantSell = cleanPrice(document.querySelector('[name="infant_sell"]')?.value);
+    
+    let adultNett = 0, childNett = 0, infantNett = 0;
+    if (invoiceType === 'international') {
+      adultNett = cleanPrice(document.querySelector('[name="adult_foreign_nett"]')?.value) * cleanPrice(document.getElementById('exchange_rate')?.value);
+      childNett = cleanPrice(document.querySelector('[name="child_foreign_nett"]')?.value) * cleanPrice(document.getElementById('exchange_rate')?.value);
+      infantNett = cleanPrice(document.querySelector('[name="infant_foreign_nett"]')?.value) * cleanPrice(document.getElementById('exchange_rate')?.value);
+    } else {
+      adultNett = cleanPrice(document.querySelector('[name="adult_nett"]')?.value);
+      childNett = cleanPrice(document.querySelector('[name="child_nett"]')?.value);
+      infantNett = cleanPrice(document.querySelector('[name="infant_nett"]')?.value);
+    }
+
+    const serviceFee = cleanPrice(document.querySelector('[name="service_fee"]')?.value);
+    const baggageCust = cleanPrice(document.querySelector('[name="baggage_customer"]')?.value);
+    const baggageNett = cleanPrice(document.querySelector('[name="baggage_nett"]')?.value);
+    const discount = cleanPrice(document.querySelector('[name="discount_amount"]')?.value);
+    const keep = cleanPrice(document.querySelector('[name="keep_amount"]')?.value);
+
+    const seatSell = adultCnt * adultSell + childCnt * childSell + infantCnt * infantSell;
+    const seatNett = adultCnt * adultNett + childCnt * childNett + infantCnt * infantNett;
+    const subtotal = seatSell + serviceFee + baggageCust;
+    const total = subtotal - discount - keep;
+    const totalNett = seatNett + baggageNett;
+    const profit = total - totalNett;
+
+    // Rincian Harga
+    html += `
+      <div class="bg-white border rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">💰 Rincian Harga</h3>
+        <div class="space-y-2 text-sm">
+          <div class="grid grid-cols-2 gap-2">
+            <span class="text-slate-600">Adult (${adultCnt}):</span>
+            <span>Rp ${adultSell.toLocaleString()} / Rp ${adultNett.toLocaleString()}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <span class="text-slate-600">Child (${childCnt}):</span>
+            <span>Rp ${childSell.toLocaleString()} / Rp ${childNett.toLocaleString()}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <span class="text-slate-600">Infant (${infantCnt}):</span>
+            <span>Rp ${infantSell.toLocaleString()} / Rp ${infantNett.toLocaleString()}</span>
+          </div>
+          ${serviceFee > 0 ? `<div class="grid grid-cols-2 gap-2"><span class="text-slate-600">Service Fee:</span><span>Rp ${serviceFee.toLocaleString()}</span></div>` : ''}
+          ${baggageCust > 0 ? `<div class="grid grid-cols-2 gap-2"><span class="text-slate-600">Bagasi (Jual):</span><span>Rp ${baggageCust.toLocaleString()}</span></div>` : ''}
+          ${baggageNett > 0 ? `<div class="grid grid-cols-2 gap-2"><span class="text-slate-600">Bagasi (Nett):</span><span>Rp ${baggageNett.toLocaleString()}</span></div>` : ''}
+          ${discount > 0 ? `<div class="grid grid-cols-2 gap-2"><span class="text-slate-600">Diskon:</span><span class="text-red-600">- Rp ${discount.toLocaleString()}</span></div>` : ''}
+          ${keep > 0 ? `<div class="grid grid-cols-2 gap-2"><span class="text-slate-600">Keep:</span><span class="text-red-600">- Rp ${keep.toLocaleString()}</span></div>` : ''}
+        </div>
+        <div class="mt-3 pt-3 border-t flex justify-between font-bold text-slate-800">
+          <span>Total Jual: Rp ${total.toLocaleString()}</span>
+          <span class="text-green-600">Profit: Rp ${profit.toLocaleString()}</span>
+        </div>
+      </div>
+    `;
+
+    // Passengers
+    if (paxRows.length > 0) {
+      let hasPassenger = false;
+      let passengersHtml = `<div class="bg-white border rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">👥 Daftar Penumpang</h3>
+        <div class="space-y-2">`;
+      paxRows.forEach(row => {
+        const type = row.querySelector('select')?.value || '';
+        const name = row.querySelector('input[name="pax_name[]"]')?.value || '';
+        const ticket = row.querySelector('input[name="ticket_number[]"]')?.value || '';
+        if (name) {
+          hasPassenger = true;
+          passengersHtml += `
+            <div class="flex items-center justify-between py-1 border-b last:border-0">
+              <div>
+                <span class="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium">${escapeHtml(type)}</span>
+                <span class="ml-2 font-medium">${escapeHtml(name)}</span>
+              </div>
+              ${ticket ? `<span class="text-sm text-slate-500">Tiket: ${escapeHtml(ticket)}</span>` : ''}
+            </div>`;
+        }
+      });
+      passengersHtml += `</div></div>`;
+      if (hasPassenger) html += passengersHtml;
+    }
+
+    preview.innerHTML = html;
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // ========== FORM SUBMIT VALIDATION ==========
+  document.getElementById('invoiceForm').addEventListener('submit', function(e) {
+    if (!validateFormBeforeSubmit()) {
+      e.preventDefault();
+    }
+  });
+
+  // Inisialisasi
+  updateSteps();
+  calculate();
+  if (document.getElementById('agent_id')) showAgentInfo();
+
+// Auto-uppercase text inputs (names, PNR, routes, flight no)
+document.addEventListener('input', function(e) {
+  const el = e.target;
+  if(el.tagName === 'INPUT' && el.type === 'text') {
+    const name = el.name || '';
+    const shouldUpper = ['pnr','flight_no[]','route_from[]','route_to[]',
+                         'class[]','pax_name[]','ticket_number[]'].includes(name);
+    if(shouldUpper){
+      const pos = el.selectionStart;
+      el.value = el.value.toUpperCase();
+      el.setSelectionRange(pos, pos);
+    }
+  }
+});
+</script>
+{% endblock %}

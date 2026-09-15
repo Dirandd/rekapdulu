@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Setingan{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">⚙️ Setingan</h1>
+
+  <!-- Profil Perusahaan (Admin only) -->
+  {% if current_user.role == 'admin' %}
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/30">
+      <h2 class="text-base font-bold text-gray-800 dark:text-gray-200">🏢 Profil Perusahaan & Logo Invoice</h2>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Info ini tampil di setiap cetak PDF invoice</p>
+    </div>
+    <form method="POST" action="{{ url_for('settings_profile') }}" enctype="multipart/form-data" class="p-6 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Nama Perusahaan</label>
+          <input type="text" name="company_name" value="{{ profile.company_name }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Nama Brand</label>
+          <input type="text" name="brand_name" value="{{ profile.brand_name }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Alamat</label>
+          <input type="text" name="address" value="{{ profile.address }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Kota</label>
+          <input type="text" name="city" value="{{ profile.city }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Telepon</label>
+          <input type="text" name="phone" value="{{ profile.phone }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">WhatsApp</label>
+          <input type="text" name="whatsapp" value="{{ profile.whatsapp }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Fax / Skype</label>
+          <input type="text" name="fax" value="{{ profile.fax }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Email</label>
+          <input type="email" name="email" value="{{ profile.email }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+      </div>
+
+      <!-- Logo Upload -->
+      <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Logo Perusahaan (tampil di PDF Invoice)</label>
+        <div class="flex items-center gap-4">
+          {% if profile.logo_filename %}
+          <img src="{{ url_for('static', filename='uploads/logos/' + profile.logo_filename) }}"
+               class="h-16 w-auto border border-gray-200 dark:border-gray-700 rounded-lg p-1 bg-white" alt="Logo">
+          {% else %}
+          <div class="h-16 w-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs">No Logo</div>
+          {% endif %}
+          <div class="flex-1">
+            <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif"
+                   class="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100">
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG, GIF · Rekomendasi: lebar max 200px</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-semibold text-sm transition-colors">
+          💾 Simpan Profil
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Profil Saya -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow border border-gray-100 dark:border-gray-800 p-6">
+    <h2 class="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">👤 Profil Saya</h2>
+    <form method="POST" action="{{ url_for('profil') }}">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Nama</label>
+          <input type="text" name="name" value="{{ current_user.name }}" required class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Telepon</label>
+          <input type="text" name="phone" value="{{ current_user.phone or '' }}" class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        </div>
+      </div>
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-semibold text-sm transition-colors">Simpan Perubahan</button>
+    </form>
+  </div>
+
+  <!-- Tampilan -->
+  <div class="bg-white dark:bg-gray-900 rounded-xl shadow border border-gray-100 dark:border-gray-800 p-6">
+    <h2 class="text-base font-bold text-gray-800 dark:text-gray-200 mb-4">🎨 Tampilan</h2>
+    <button onclick="toggleDark()" class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition font-medium text-sm">
+      🌓 Toggle Dark Mode
+    </button>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        if(typeof Swal !== 'undefined') Swal.fire({icon:'{{ "success" if cat=="success" else "error" }}',title:'{{ msg }}',timer:3000,showConfirmButton:false});
+      });
+    </script>
+    {% endfor %}{% endif %}
+  {% endwith %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}REKAP DULU{% endblock %}</title>
+  <link href="{{ url_for('static', filename='dist/output.css') }}" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>if(localStorage.getItem('dark')==='true')document.documentElement.classList.add('dark');</script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+    /* ── Sidebar ── */
+    .sidebar { background: linear-gradient(175deg, #0a0f1e 0%, #0f1a35 45%, #0d1f2d 100%); }
+
+    /* Scrollbar */
+    .sidebar::-webkit-scrollbar { width: 2px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+    /* Logo area */
+    .logo-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      flex-shrink: 0;
+    }
+
+    /* Nav items */
+    .nav-link {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 8px;
+      font-size: .8125rem; font-weight: 500;
+      transition: all .15s; white-space: nowrap;
+      color: rgba(255,255,255,.5);
+      text-decoration: none;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+    .nav-link.active {
+      background: rgba(255,255,255,.11);
+      color: #fff; font-weight: 600;
+      box-shadow: inset 2px 0 0 #3B82F6;
+    }
+    .nav-link svg { flex-shrink: 0; width: 15px; height: 15px; }
+
+    /* Section label */
+    .sec-lbl {
+      font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,.22); padding: 10px 10px 3px;
+    }
+
+    /* Role badge */
+    .role-adm { background: rgba(220,38,38,.25); color: #fca5a5; }
+    .role-stf { background: rgba(37,99,235,.25); color: #93c5fd; }
+    .role-badge {
+      font-size: .65rem; font-weight: 700; padding: 2px 6px;
+      border-radius: 4px; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-gray-950 text-gray-800 dark:text-gray-100 flex min-h-screen">
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<aside class="sidebar w-56 flex-shrink-0 flex flex-col sticky top-0 h-screen overflow-y-auto">
+
+  <!-- ── LOGO ROW ── -->
+  <div class="logo-bar">
+    <!-- SVG Logo Icon -->
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+      <rect width="30" height="30" rx="7" fill="url(#lg1)"/>
+      <!-- Chart bars -->
+      <rect x="5" y="17" width="4" height="8" rx="1" fill="#4ADE80" opacity=".9"/>
+      <rect x="11" y="12" width="4" height="13" rx="1" fill="#60A5FA" opacity=".9"/>
+      <rect x="17" y="7" width="4" height="18" rx="1" fill="#F87171" opacity=".9"/>
+      <!-- Trend line -->
+      <polyline points="7,17 13,12 19,7 23,4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+      <!-- Dot on trend -->
+      <circle cx="23" cy="4" r="1.5" fill="white" opacity=".9"/>
+      <defs>
+        <linearGradient id="lg1" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#1D4ED8"/>
+          <stop offset="50%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#166534"/>
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <!-- Brand text -->
+    <div style="line-height:1; flex-shrink:0">
+      <div style="font-size:.85rem; font-weight:900; letter-spacing:.05em; color:#ffffff;">
+        REKAP DULU
+      </div>
+      <div style="font-size:.6rem; margin-top:3px; letter-spacing:.04em; color:rgba(255,255,255,.35);">
+        {{ 'Administrator' if current_user.role=='admin' else 'Staff' }}
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <!-- Role badge -->
+    <span class="role-badge {{ 'role-adm' if current_user.role=='admin' else 'role-stf' }}">
+      {{ 'ADM' if current_user.role=='admin' else 'STF' }}
+    </span>
+  </div>
+
+  <!-- ── NAV ── -->
+  {% set p = request.path %}
+  <nav class="flex-1 px-2 py-2" style="display:flex; flex-direction:column; gap:1px;">
+
+    <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if p=='/' else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Dashboard
+    </a>
+
+    <div class="sec-lbl" style="color:rgba(255,255,255,.5);font-weight:600">Tiket</div>
+
+    <a href="{{ url_for('invoice_list') }}" class="nav-link {{ 'active' if '/invoice' in p and '/arsip' not in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Invoice
+    </a>
+
+    <a href="{{ url_for('arsip') }}" class="nav-link {{ 'active' if '/arsip' in p and 'refund' not in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+      Arsip Invoice
+    </a>
+
+    <a href="{{ url_for('refund_list') }}" class="nav-link {{ 'active' if '/refund' in p and 'arsip' not in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+      Refund
+    </a>
+
+    <a href="{{ url_for('arsip_refund') }}" class="nav-link {{ 'active' if '/arsip-refund' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+      Arsip Refund
+    </a>
+
+    {% if current_user.role == 'admin' %}
+    <div class="sec-lbl" style="color:rgba(255,255,255,.5);font-weight:600">Keuangan</div>
+    <a href="{{ url_for('pelunasan') }}" class="nav-link {{ 'active' if '/pelunasan' in p and '/lunas' not in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+      Credit Agent
+    </a>
+    <a href="{{ url_for('pelunasan_lunas') }}" class="nav-link {{ 'active' if '/pelunasan/lunas' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Bayar Invoice
+    </a>
+    <a href="{{ url_for('rekapan') }}" class="nav-link {{ 'active' if '/rekapan' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Rekapan
+    </a>
+    <a href="{{ url_for('agent') }}" class="nav-link {{ 'active' if p==url_for('agent') else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Agent
+    </a>
+    {% endif %}
+
+    <a href="{{ url_for('settings') }}" class="nav-link {{ 'active' if '/settings' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Pengaturan
+    </a>
+
+    {% if current_user.role=='admin' %}
+    <div class="sec-lbl" style="color:rgba(255,255,255,.5);font-weight:600">Master Data</div>
+    <a href="{{ url_for('admin_agency_categories') }}" class="nav-link {{ 'active' if '/admin/kriteria' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      Kriteria Agent
+    </a>
+    <a href="{{ url_for('admin_agents') }}" class="nav-link {{ 'active' if '/admin/agent' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      Data Agent
+    </a>
+    <a href="{{ url_for('admin_airlines') }}" class="nav-link {{ 'active' if p == url_for('admin_airlines') else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+      Maskapai
+    </a>
+    <a href="{{ url_for('admin_airline_schedule') }}" class="nav-link {{ 'active' if '/admin/airline-schedule' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      Kelola Jadwal
+    </a>
+    <a href="{{ url_for('admin_users') }}" class="nav-link {{ 'active' if '/admin/user' in p else '' }}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      Manajemen User
+    </a>
+    {% endif %}
+
+  </nav>
+
+  <!-- ── LOGOUT ── -->
+  <div style="padding:8px; border-top:1px solid rgba(255,255,255,.06); flex-shrink:0">
+    <a href="{{ url_for('logout') }}" class="nav-link" style="color:rgba(252,165,165,.75);"
+       onmouseover="this.style.background='rgba(220,38,38,.15)';this.style.color='#fca5a5'"
+       onmouseout="this.style.background='transparent';this.style.color='rgba(252,165,165,.75)'">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      <span style="font-size:.8rem">{{ current_user.name }}</span>
+      <span style="flex:1"></span>
+      <span style="font-size:.68rem;color:rgba(255,255,255,.25)">Keluar</span>
+    </a>
+  </div>
+</aside>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main class="flex-1 overflow-y-auto min-h-screen">
+  <!-- Topbar -->
+  <header class="sticky top-0 z-20 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-100 dark:border-gray-800 px-6 py-3 flex items-center justify-between">
+    <div class="text-sm font-semibold text-gray-600 dark:text-gray-300">{% block page_title %}{% endblock %}</div>
+    <div class="flex items-center gap-3">
+      <button onclick="toggleDark()" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <svg id="ic-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <svg id="ic-moon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="p-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat,msg in messages %}
+        <script>Swal.fire({icon:'{{ "success" if cat=="success" else "error" }}',title:'{{ msg }}',timer:3000,showConfirmButton:false});</script>
+      {% endfor %}{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<script>
+function toggleDark(){
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem('dark', document.documentElement.classList.contains('dark'));
+}
+function doVoid(url, label, callback){
+  Swal.fire({
+    title:'VOID ' + label + '?',
+    html:'Data akan dihapus permanen.',
+    icon:'warning', iconColor:'#DC2626',
+    showCancelButton:true,
+    confirmButtonColor:'#DC2626', cancelButtonColor:'#6B7280',
+    confirmButtonText:'✓ Ya, VOID', cancelButtonText:'Batal',
+    reverseButtons:true
+  }).then(r=>{
+    if(!r.isConfirmed) return;
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}})
+    .then(res=>{ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+    .then(data=>{
+      if(data.status==='success'){
+        Swal.fire({icon:'success',title:'Di-VOID!',text:data.message,timer:1800,showConfirmButton:false})
+          .then(()=>{ if(callback) callback(); else location.reload(); });
+      } else { Swal.fire('Gagal',data.message||'Terjadi kesalahan','error'); }
+    })
+    .catch(err=>Swal.fire('Error','Request gagal: '+err.message,'error'));
+  });
+}
+</script>
+</body>
+</html>

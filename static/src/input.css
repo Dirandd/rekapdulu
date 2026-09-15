@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark mode custom styles */
+@layer components {
+    /* Form inputs dark mode */
+    .dark input[type="text"],
+    .dark input[type="email"],
+    .dark input[type="password"],
+    .dark input[type="number"],
+    .dark input[type="date"],
+    .dark select,
+    .dark textarea {
+        @apply bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400;
+    }
+    
+    .dark input:focus,
+    .dark select:focus,
+    .dark textarea:focus {
+        @apply border-indigo-500 ring-2 ring-indigo-500/20 outline-none;
+    }
+    
+    /* Table dark mode */
+    .dark table {
+        @apply bg-gray-800 border-gray-700;
+    }
+    
+    .dark th {
+        @apply bg-gray-700 text-gray-100;
+    }
+    
+    .dark td {
+        @apply border-gray-700 text-gray-300;
+    }
+    
+    .dark tbody tr:hover {
+        @apply bg-gray-700/50;
+    }
+    
+    /* Card dark mode */
+    .dark .bg-white {
+        @apply bg-gray-800;
+    }
+    
+    .dark .shadow-md,
+    .dark .shadow-lg {
+        @apply shadow-gray-900/50;
+    }
+    
+    /* Button hover states */
+    .dark .hover\:bg-gray-50:hover {
+        @apply bg-gray-700;
+    }
+}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Detail Laporan Invoice — REKAP DULU{% endblock %}
+{% block page_title %}📋 Detail Laporan Keuangan Invoice{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{{ url_for('rekapan') }}" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <div>
+    <h1 class="text-xl font-bold text-gray-900 dark:text-white">Detail Laporan Invoice</h1>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+      {% if start or end %}Filter: {{ start or '—' }} s/d {{ end or '—' }}{% else %}Semua data{% endif %}
+      · {{ invoices|length }} invoice
+    </p>
+  </div>
+  <div class="ml-auto flex gap-2">
+    <a href="{{ url_for('rekapan_invoice_detail') }}{% if start or end %}?start={{ start }}&end={{ end }}{% endif %}&export=pdf"
+       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+       style="background:linear-gradient(135deg,#DC2626,#b91c1c)">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      PDF
+    </a>
+  </div>
+</div>
+
+<!-- Summary totals -->
+<div class="grid grid-cols-3 gap-3 mb-5">
+  {% for lbl, val, clr in [('Total Jual', total_sell, 'blue'), ('Total Nett', total_nett, 'slate'), ('Total Profit', total_profit, 'green')] %}
+  <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 shadow-sm">
+    <div class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">{{ lbl }}</div>
+    <div class="text-xl font-black text-{{ clr }}-600 dark:text-{{ clr }}-400 {% if lbl=='Total Profit' and val<0 %}!text-red-500{% endif %}">Rp {{ "{:,.0f}".format(val) }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Table -->
+<div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-800/70 border-b border-gray-100 dark:border-gray-800">
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">No</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Invoice</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tanggal</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">PNR</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Agent</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Rute</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pax</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Jual</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Nett</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Profit</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+        {% for inv in invoices %}
+        <tr class="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors">
+          <td class="px-3 py-2.5 text-gray-400 dark:text-gray-600">{{ loop.index }}</td>
+          <td class="px-3 py-2.5"><span class="font-mono font-bold text-blue-700 dark:text-blue-400">{{ inv.invoice_number }}</span></td>
+          <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">{{ inv.created_at.strftime('%d/%m/%Y') }}</td>
+          <td class="px-3 py-2.5 font-mono font-bold text-gray-700 dark:text-gray-300">{{ inv.pnr }}</td>
+          <td class="px-3 py-2.5 text-gray-600 dark:text-gray-400">{{ inv.agent_name }}</td>
+          <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">
+            {{ inv.flights[0].route_from + '→' + inv.flights[0].route_to if inv.flights else '—' }}
+          </td>
+          <td class="px-3 py-2.5 text-center text-gray-500 dark:text-gray-400">{{ inv.total_pax or '—' }}</td>
+          <td class="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-gray-200">Rp {{ "{:,.0f}".format(inv.total_sell) }}</td>
+          <td class="px-3 py-2.5 text-right text-gray-500 dark:text-gray-400">Rp {{ "{:,.0f}".format(inv.total_nett) }}</td>
+          <td class="px-3 py-2.5 text-right font-bold {{ 'text-green-600 dark:text-green-400' if inv.profit>=0 else 'text-red-500' }}">
+            Rp {{ "{:,.0f}".format(inv.profit) }}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="px-4 py-10 text-center text-gray-400 dark:text-gray-500">Belum ada data invoice</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+        <tr>
+          <td colspan="7" class="px-3 py-3 font-bold text-gray-600 dark:text-gray-300 text-right uppercase tracking-wide text-xs">Total</td>
+          <td class="px-3 py-3 text-right font-black text-blue-700 dark:text-blue-400">Rp {{ "{:,.0f}".format(total_sell) }}</td>
+          <td class="px-3 py-3 text-right font-black text-gray-600 dark:text-gray-300">Rp {{ "{:,.0f}".format(total_nett) }}</td>
+          <td class="px-3 py-3 text-right font-black {{ 'text-green-700 dark:text-green-400' if total_profit>=0 else 'text-red-500' }}">Rp {{ "{:,.0f}".format(total_profit) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

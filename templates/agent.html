@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Report per Agent{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">📊 Report Invoice per Agent & Kategori</h1>
+
+  {% for cat_id, cat_data in grouped.items() %}
+  <div class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">{{ cat_data.name }}</h2>
+      {% if cat_id != 0 %}
+      <a href="{{ url_for('export_category_excel', category_id=cat_id) }}" class="bg-green-500 dark:bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 dark:hover:bg-green-500">
+        📥 Export Excel Kategori
+      </a>
+      {% endif %}
+    </div>
+
+    {% for agent_name, invoices in cat_data.agents.items() %}
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-md border border-gray-100 dark:border-gray-800 overflow-hidden mb-4">
+      <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-800 dark:text-gray-200">{{ agent_name }} <span class="text-sm text-gray-500 dark:text-gray-400">({{ invoices|length }} invoice)</span></h3>
+        {% if invoices[0].agent_id %}
+        <a href="{{ url_for('export_agent_excel', agent_id=invoices[0].agent_id) }}" class="text-blue-600 dark:text-blue-400 hover:underline text-sm">📥 Export Agent</a>
+        {% endif %}
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+          <tr>
+            <th class="px-6 py-2 text-left">PNR</th>
+            <th class="px-6 py-2 text-left">Maskapai/Rute</th>
+            <th class="px-6 py-2 text-left">Tgl</th>
+            <th class="px-6 py-2 text-right">Total Jual</th>
+            <th class="px-6 py-2 text-right">Profit</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for inv in invoices %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            <td class="px-6 py-2 font-mono text-blue-700 dark:text-blue-400">{{ inv.pnr }}</td>
+            <td class="px-6 py-2 text-gray-700 dark:text-gray-300">
+              {% if inv.flights %}
+                {{ inv.flights[0].airline }} {{ inv.flights[0].flight_no }}<br>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ inv.flights[0].route_from }}-{{ inv.flights[0].route_to }}</span>
+              {% else %}-{% endif %}
+            </td>
+            <td class="px-6 py-2 text-gray-600 dark:text-gray-400">{{ inv.created_at.strftime('%d/%m/%Y') }}</td>
+            <td class="px-6 py-2 text-right text-gray-800 dark:text-gray-200">Rp {{ "{:,.0f}".format(inv.total_sell) }}</td>
+            <td class="px-6 py-2 text-right text-green-600 dark:text-green-400">Rp {{ "{:,.0f}".format(inv.profit) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white dark:bg-gray-900 rounded-xl p-12 text-center border border-gray-100 dark:border-gray-800">
+    <div class="text-4xl mb-3">📊</div>
+    <p class="text-gray-500 dark:text-gray-400">Belum ada data agent</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

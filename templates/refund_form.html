@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if refund else 'Buat' }} Refund — REKAP DULU{% endblock %}
+{% block page_title %}↩️ {{ 'Edit Refund' if refund else 'Buat Refund Baru' }}{% endblock %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{{ url_for('refund_list') }}" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ 'Edit Refund' if refund else 'Buat Refund Baru' }}</h1>
+  </div>
+
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+    <!-- Accent bar -->
+    <div class="h-1 bg-gradient-to-r from-red-500 via-blue-500 to-green-500"></div>
+
+    <div class="p-6">
+      <!-- Step 1: Pilih Invoice -->
+      <div class="mb-6">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          Cari Invoice / PNR
+        </label>
+        <div class="flex gap-2">
+          <select id="invoiceSelect" onchange="loadInvoiceData()"
+                  class="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+            <option value="">— Pilih Invoice (opsional) —</option>
+            {% for inv in invoices %}
+            <option value="{{ inv.id }}"
+                    data-pnr="{{ inv.pnr }}"
+                    data-invno="{{ inv.invoice_number }}"
+                    data-agent="{{ inv.agent_name }}"
+                    data-total="{{ inv.total_sell }}"
+                    data-profit="{{ inv.profit }}"
+                    {{ 'selected' if refund and refund.invoice_id==inv.id else '' }}>
+              {{ inv.invoice_number }} — {{ inv.pnr }} — {{ inv.agent_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Info Invoice (auto-fill) -->
+      <div id="invoiceInfo" class="mb-6 hidden">
+        <div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl p-4">
+          <div class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">Info Invoice Sumber</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <div class="text-[10px] text-blue-400 dark:text-blue-500 uppercase">No Invoice</div>
+              <div class="text-sm font-bold text-blue-800 dark:text-blue-300" id="info-invno">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-blue-400 dark:text-blue-500 uppercase">PNR</div>
+              <div class="text-sm font-bold text-blue-800 dark:text-blue-300 font-mono" id="info-pnr">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-blue-400 dark:text-blue-500 uppercase">Agent</div>
+              <div class="text-sm font-medium text-blue-800 dark:text-blue-300" id="info-agent">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-blue-400 dark:text-blue-500 uppercase">Total Invoice</div>
+              <div class="text-sm font-bold text-blue-800 dark:text-blue-300" id="info-total">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form method="POST" id="refundForm">
+        <input type="hidden" name="invoice_id" id="hiddenInvoiceId" value="{{ refund.invoice_id if refund and refund.invoice_id else '' }}">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <!-- PNR -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+              PNR / No Tiket <span class="text-red-500">*</span>
+            </label>
+            <input type="text" name="pnr" id="pnrField" required
+                   value="{{ refund.pnr if refund else '' }}"
+                   placeholder="Contoh: ABC123"
+                   class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm font-mono bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none uppercase">
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Catatan</label>
+            <input type="text" name="notes"
+                   value="{{ refund.notes if refund else '' }}"
+                   placeholder="Alasan refund (opsional)"
+                   class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+          </div>
+        </div>
+
+        <!-- Kalkulasi Refund -->
+        <div class="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-5 mb-5 border border-gray-100 dark:border-gray-700">
+          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Kalkulasi Refund</div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Dari Maskapai -->
+            <div>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                Dari Maskapai (Rp) <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="airline_refund" id="airlineRefund" required
+                     value="{{ '{:,.0f}'.format(refund.airline_refund) if refund else '' }}"
+                     placeholder="0"
+                     oninput="formatPrice(this);calcProfit()"
+                     class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-right font-mono">
+              <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Uang kembali dari maskapai ke agen</p>
+            </div>
+
+            <!-- Keep / Admin Fee (opsional) -->
+            <div>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                Keep / Admin Fee (Rp) <span class="text-gray-400 text-[10px]">opsional</span>
+              </label>
+              <input type="text" name="keep" id="keepField"
+                     value="{{ '{:,.0f}'.format(refund.keep) if refund and refund.keep else '' }}"
+                     placeholder="0"
+                     oninput="formatPrice(this);calcProfit()"
+                     class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-right font-mono">
+              <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Biaya admin yang ditahan agen</p>
+            </div>
+
+            <!-- Ke Pelanggan (auto = airline - keep) -->
+            <div>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                Ke Pelanggan (Rp) <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="customer_refund" id="customerRefund" required
+                     value="{{ '{:,.0f}'.format(refund.customer_refund) if refund else '' }}"
+                     placeholder="0"
+                     oninput="formatPrice(this);calcProfit()"
+                     class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-right font-mono">
+              <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Uang dikembalikan ke pelanggan</p>
+            </div>
+          </div>
+
+          <!-- Profit result -->
+          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-600 dark:text-gray-300">Profit Refund</span>
+            <span id="profitDisplay" class="text-lg font-black text-green-600 dark:text-green-400">Rp 0</span>
+          </div>
+          <div id="profitWarning" class="hidden mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 rounded-lg px-3 py-2">
+            ⚠️ Ke Pelanggan melebihi jumlah Dari Maskapai!
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <a href="{{ url_for('refund_list') }}"
+             class="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            Batal
+          </a>
+          <button type="submit"
+                  class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition-all"
+                  style="background:linear-gradient(135deg,#2563EB,#16A34A);">
+            {{ '💾 Simpan Perubahan' if refund else '✓ Simpan Refund' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatPrice(el){
+  let v = el.value.replace(/[^0-9]/g,'');
+  el.value = v ? parseInt(v).toLocaleString('id-ID') : '';
+}
+function getVal(id){ return parseFloat(document.getElementById(id).value.replace(/\./g,'').replace(',','.')) || 0; }
+
+function calcProfit(){
+  const airline = getVal('airlineRefund');
+  const keep = getVal('keepField');
+  const customer = getVal('customerRefund');
+
+  // Auto-fill customer if keep is changed
+  // profit = airline - customer
+  const profit = airline - customer;
+  const el = document.getElementById('profitDisplay');
+  el.textContent = 'Rp ' + profit.toLocaleString('id-ID', {maximumFractionDigits:0});
+  el.className = 'text-lg font-black ' + (profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400');
+
+  const warn = document.getElementById('profitWarning');
+  warn.classList.toggle('hidden', profit >= 0);
+}
+
+function loadInvoiceData(){
+  const sel = document.getElementById('invoiceSelect');
+  const opt = sel.options[sel.selectedIndex];
+  const info = document.getElementById('invoiceInfo');
+  const hiddenId = document.getElementById('hiddenInvoiceId');
+
+  if (!sel.value) {
+    info.classList.add('hidden');
+    hiddenId.value = '';
+    return;
+  }
+  hiddenId.value = sel.value;
+  document.getElementById('info-invno').textContent = opt.dataset.invno || '—';
+  document.getElementById('info-pnr').textContent = opt.dataset.pnr || '—';
+  document.getElementById('info-agent').textContent = opt.dataset.agent || '—';
+  document.getElementById('info-total').textContent = 'Rp ' + parseFloat(opt.dataset.total||0).toLocaleString('id-ID',{maximumFractionDigits:0});
+  document.getElementById('pnrField').value = opt.dataset.pnr || '';
+  info.classList.remove('hidden');
+}
+
+// Init
+window.addEventListener('DOMContentLoaded', () => {
+  calcProfit();
+  if(document.getElementById('invoiceSelect').value) loadInvoiceData();
+});
+</script>
+{% endblock %}
